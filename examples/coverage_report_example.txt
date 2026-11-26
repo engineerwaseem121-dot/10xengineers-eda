@@ -1,0 +1,147 @@
+Coverage Report by instance with details
+
+=================================================================================
+=== Instance: /tb_top/u_dut
+=== Design Unit: work.traffic_light
+=================================================================================
+
+Branch Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Branches                        22        18         4    81.81%
+
+Statement Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Statements                      34        31         3    91.17%
+
+Toggle Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Toggles                         40        29        11    72.50%
+
+FSM Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    FSM States                       6         5         1    83.33%
+    FSM Transitions                  8         6         2    75.00%
+
+Statement Coverage for instance /tb_top/u_dut --
+
+    Line         Item                      Count     Source
+    ----         ----                      -----     ------
+  File traffic_light.sv
+    27              1                        120
+    28              1                        118
+    33              1                          4
+    34              1                         20
+    35              1                         98
+    40              1                         60
+    41              1                    ***0***
+    42              1                          9
+    43              1                         14
+    44              1                         21
+    45              1                          9
+    46              1                    ***0***
+    47              1                    ***0***
+    55              1                         40
+    56              1                          6
+    57              1                         18
+    58              1                          9
+    60              1                    ***0***
+
+Branch Coverage for instance /tb_top/u_dut
+
+    Line         Item                      Count     Source
+    ----         ----                      -----     ------
+  File traffic_light.sv
+    40              1                         60
+    46              1                    ***0***
+
+=================================================================================
+=== Instance: /tb_top/tl_vif
+=== Design Unit: work.tl_if
+=================================================================================
+
+Toggle Coverage:
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Toggles                         16        12         4    75.00%
+
+
+COVERGROUP COVERAGE:
+----------------------------------------------------------------------------------------------------------
+Covergroup                                             Metric       Goal       Bins    Status
+
+----------------------------------------------------------------------------------------------------------
+ TYPE /tl_pkg/tl_coverage/tl_cg                        68.75%        100          -    Uncovered
+    covered/total bins:                                    11         16          -
+    missing/total bins:                                     5         16          -
+    % Hit:                                             68.75%        100          -
+    Coverpoint cp_state                                83.33%        100          -    Uncovered
+        covered/total bins:                                 5          6          -
+        missing/total bins:                                 1          6          -
+        % Hit:                                         83.33%        100          -
+        bin auto[MAIN_GREEN]                               52          1          -    Covered
+        bin auto[MAIN_YELLOW]                              12          1          -    Covered
+        bin auto[ALL_RED]                                   9          1          -    Covered
+        bin auto[SIDE_GREEN]                               20          1          -    Covered
+        bin auto[SIDE_YELLOW]                              12          1          -    Covered
+        bin auto[FLASH]                                     0          1          -    ZERO
+    Coverpoint cp_car_waiting                         100.00%        100          -    Covered
+        covered/total bins:                                 2          2          -
+        missing/total bins:                                 0          2          -
+        % Hit:                                        100.00%        100          -
+        bin auto[0]                                        61          1          -    Covered
+        bin auto[1]                                        59          1          -    Covered
+    Coverpoint cp_emergency                            50.00%        100          -    Uncovered
+        covered/total bins:                                 1          2          -
+        missing/total bins:                                 1          2          -
+        % Hit:                                         50.00%        100          -
+        bin auto[0]                                       120          1          -    Covered
+        bin auto[1]                                         0          1          -    ZERO
+    Coverpoint cp_timer                                75.00%        100          -    Uncovered
+        covered/total bins:                                 3          4          -
+        missing/total bins:                                 1          4          -
+        % Hit:                                         75.00%        100          -
+        bin zero                                           30          1          -    Covered
+        bin low                                            60          1          -    Covered
+        bin mid                                            30          1          -    Covered
+        bin high                                            0          1          -    ZERO
+        illegal_bin bad                                     0          -          -    Occurred
+    Cross x_car_emergency                              50.00%        100          -    Uncovered
+        covered/total bins:                                 2          4          -
+        missing/total bins:                                 2          4          -
+        % Hit:                                         50.00%        100          -
+        bin <auto[0],auto[0]>                              61          1          -    Covered
+        bin <auto[1],auto[0]>                              59          1          -    Covered
+        bin <auto[0],auto[1]>                               0          1          -    ZERO
+        bin <auto[1],auto[1]>                               0          1          -    ZERO
+ TYPE /tl_pkg/tl_coverage/tl_reset_cg                   0.00%        100          -    ZERO
+    covered/total bins:                                     0          2          -
+    missing/total bins:                                     2          2          -
+    Coverpoint cp_rst                                   0.00%        100          -    ZERO
+        bin auto[0]                                         0          1          -    ZERO
+        bin auto[1]                                         0          1          -    ZERO
+
+ASSERTION RESULTS:
+--------------------------------------------------------------------
+Name                 File(Line)                   Failure      Pass
+                                                  Count        Count
+--------------------------------------------------------------------
+/tb_top/tl_vif/a_stable
+                     tl_if.sv(21)                       0          0
+/tb_top/u_dut/u_tl_assertions/a_main_light_known
+                     tl_assertions.sv(3)                0        118
+/tb_top/u_dut/u_tl_assertions/a_side_light_known
+                     tl_assertions.sv(5)                1        117
+
+DIRECTIVE COVERAGE:
+--------------------------------------------------------------------------------------------
+Name                                     Design Design   Lang File(Line)      Count Status
+                                         Unit   UnitType
+--------------------------------------------------------------------------------------------
+/tb_top/u_dut/c_flash_entered            traffic_light Verilog  SVA  traffic_light.sv(70)      0 ZERO
+/tb_top/u_dut/c_full_cycle               traffic_light Verilog  SVA  traffic_light.sv(72)      3 Covered
+
+Total Coverage By Instance (filtered view): 71.42%

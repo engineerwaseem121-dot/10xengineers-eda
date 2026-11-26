@@ -1,0 +1,250 @@
+{
+  "UVM component": {
+    "prefix": "uvm_component",
+    "body": [
+      "class ${1:my_component} extends ${2|uvm_component,uvm_env,uvm_agent,uvm_monitor,uvm_scoreboard,uvm_test|};",
+      "  `uvm_component_utils($1)",
+      "",
+      "  function new(string name, uvm_component parent);",
+      "    super.new(name, parent);",
+      "  endfunction",
+      "",
+      "  virtual function void build_phase(uvm_phase phase);",
+      "    super.build_phase(phase);",
+      "    $0",
+      "  endfunction",
+      "endclass"
+    ]
+  },
+  "UVM object": {
+    "prefix": "uvm_object",
+    "body": [
+      "class ${1:my_object} extends uvm_object;",
+      "  `uvm_object_utils($1)",
+      "",
+      "  function new(string name = \"$1\");",
+      "    super.new(name);",
+      "  endfunction",
+      "  $0",
+      "endclass"
+    ]
+  },
+  "UVM sequence item": {
+    "prefix": "uvm_seq_item",
+    "body": [
+      "class ${1:my_item} extends uvm_sequence_item;",
+      "  rand bit [${2:31}:0] ${3:data};",
+      "",
+      "  `uvm_object_utils_begin($1)",
+      "    `uvm_field_int($3, UVM_ALL_ON)",
+      "  `uvm_object_utils_end",
+      "",
+      "  function new(string name = \"$1\");",
+      "    super.new(name);",
+      "  endfunction",
+      "endclass"
+    ]
+  },
+  "UVM sequence": {
+    "prefix": "uvm_sequence",
+    "body": [
+      "class ${1:my_sequence} extends uvm_sequence #(${2:my_item});",
+      "  `uvm_object_utils($1)",
+      "",
+      "  function new(string name = \"$1\");",
+      "    super.new(name);",
+      "  endfunction",
+      "",
+      "  virtual task body();",
+      "    repeat (${3:10}) begin",
+      "      req = $2::type_id::create(\"req\");",
+      "      start_item(req);",
+      "      if (!req.randomize()) `uvm_error(get_type_name(), \"randomize failed\")",
+      "      finish_item(req);",
+      "    end",
+      "  endtask",
+      "endclass"
+    ]
+  },
+  "UVM driver": {
+    "prefix": "uvm_driver",
+    "body": [
+      "class ${1:my_driver} extends uvm_driver #(${2:my_item});",
+      "  `uvm_component_utils($1)",
+      "  virtual ${3:my_if} vif;",
+      "",
+      "  function new(string name, uvm_component parent);",
+      "    super.new(name, parent);",
+      "  endfunction",
+      "",
+      "  virtual function void build_phase(uvm_phase phase);",
+      "    super.build_phase(phase);",
+      "    if (!uvm_config_db#(virtual $3)::get(this, \"\", \"vif\", vif))",
+      "      `uvm_fatal(\"NOVIF\", \"virtual interface not set\")",
+      "  endfunction",
+      "",
+      "  virtual task run_phase(uvm_phase phase);",
+      "    forever begin",
+      "      seq_item_port.get_next_item(req);",
+      "      $0// drive req onto vif",
+      "      seq_item_port.item_done();",
+      "    end",
+      "  endtask",
+      "endclass"
+    ]
+  },
+  "UVM monitor": {
+    "prefix": "uvm_monitor",
+    "body": [
+      "class ${1:my_monitor} extends uvm_monitor;",
+      "  `uvm_component_utils($1)",
+      "  virtual ${2:my_if} vif;",
+      "  uvm_analysis_port #(${3:my_item}) ap;",
+      "",
+      "  function new(string name, uvm_component parent);",
+      "    super.new(name, parent);",
+      "    ap = new(\"ap\", this);",
+      "  endfunction",
+      "",
+      "  virtual function void build_phase(uvm_phase phase);",
+      "    super.build_phase(phase);",
+      "    if (!uvm_config_db#(virtual $2)::get(this, \"\", \"vif\", vif))",
+      "      `uvm_fatal(\"NOVIF\", \"virtual interface not set\")",
+      "  endfunction",
+      "",
+      "  virtual task run_phase(uvm_phase phase);",
+      "    forever begin",
+      "      @(posedge vif.clk);",
+      "      $0",
+      "    end",
+      "  endtask",
+      "endclass"
+    ]
+  },
+  "UVM agent": {
+    "prefix": "uvm_agent",
+    "body": [
+      "class ${1:my_agent} extends uvm_agent;",
+      "  `uvm_component_utils($1)",
+      "  ${2:my_driver}  drv;",
+      "  ${3:my_monitor} mon;",
+      "  uvm_sequencer #(${4:my_item}) sqr;",
+      "",
+      "  function new(string name, uvm_component parent);",
+      "    super.new(name, parent);",
+      "  endfunction",
+      "",
+      "  virtual function void build_phase(uvm_phase phase);",
+      "    super.build_phase(phase);",
+      "    mon = $3::type_id::create(\"mon\", this);",
+      "    if (get_is_active() == UVM_ACTIVE) begin",
+      "      drv = $2::type_id::create(\"drv\", this);",
+      "      sqr = uvm_sequencer#($4)::type_id::create(\"sqr\", this);",
+      "    end",
+      "  endfunction",
+      "",
+      "  virtual function void connect_phase(uvm_phase phase);",
+      "    if (get_is_active() == UVM_ACTIVE) drv.seq_item_port.connect(sqr.seq_item_export);",
+      "  endfunction",
+      "endclass"
+    ]
+  },
+  "UVM scoreboard": {
+    "prefix": "uvm_scoreboard",
+    "body": [
+      "class ${1:my_scoreboard} extends uvm_scoreboard;",
+      "  `uvm_component_utils($1)",
+      "  uvm_analysis_imp #(${2:my_item}, $1) imp;",
+      "",
+      "  function new(string name, uvm_component parent);",
+      "    super.new(name, parent);",
+      "    imp = new(\"imp\", this);",
+      "  endfunction",
+      "",
+      "  virtual function void write($2 t);",
+      "    $0",
+      "  endfunction",
+      "endclass"
+    ]
+  },
+  "UVM test": {
+    "prefix": "uvm_test",
+    "body": [
+      "class ${1:my_test} extends uvm_test;",
+      "  `uvm_component_utils($1)",
+      "  ${2:my_env} env;",
+      "",
+      "  function new(string name, uvm_component parent);",
+      "    super.new(name, parent);",
+      "  endfunction",
+      "",
+      "  virtual function void build_phase(uvm_phase phase);",
+      "    super.build_phase(phase);",
+      "    env = $2::type_id::create(\"env\", this);",
+      "  endfunction",
+      "",
+      "  virtual task run_phase(uvm_phase phase);",
+      "    phase.raise_objection(this);",
+      "    $0",
+      "    phase.drop_objection(this);",
+      "  endtask",
+      "endclass"
+    ]
+  },
+  "uvm_info": {
+    "prefix": "uvm_info",
+    "body": ["`uvm_info(get_type_name(), \\$sformatf(\"${1:msg}\"), ${2|UVM_LOW,UVM_MEDIUM,UVM_HIGH,UVM_FULL,UVM_DEBUG,UVM_NONE|})"]
+  },
+  "uvm_error": {
+    "prefix": "uvm_error",
+    "body": ["`uvm_error(get_type_name(), \\$sformatf(\"${1:msg}\"))"]
+  },
+  "uvm_warning": {
+    "prefix": "uvm_warning",
+    "body": ["`uvm_warning(get_type_name(), \\$sformatf(\"${1:msg}\"))"]
+  },
+  "uvm_fatal": {
+    "prefix": "uvm_fatal",
+    "body": ["`uvm_fatal(get_type_name(), \"${1:msg}\")"]
+  },
+  "uvm_config_db set": {
+    "prefix": "uvm_config_set",
+    "body": ["uvm_config_db#(${1:virtual my_if})::set(${2:null}, \"${3:uvm_test_top.*}\", \"${4:vif}\", ${5:value});"]
+  },
+  "uvm_config_db get": {
+    "prefix": "uvm_config_get",
+    "body": ["if (!uvm_config_db#(${1:virtual my_if})::get(this, \"\", \"${2:vif}\", ${3:vif}))", "  `uvm_fatal(\"CFG\", \"$2 not set\")"]
+  },
+  "factory create": {
+    "prefix": "uvm_create",
+    "body": ["${1:obj} = ${2:my_class}::type_id::create(\"$1\"${3:, this});"]
+  },
+  "objection": {
+    "prefix": "uvm_objection",
+    "body": ["phase.raise_objection(this);", "$0", "phase.drop_objection(this);"]
+  },
+  "phase: build": {
+    "prefix": "build_phase",
+    "body": ["virtual function void build_phase(uvm_phase phase);", "  super.build_phase(phase);", "  $0", "endfunction"]
+  },
+  "phase: connect": {
+    "prefix": "connect_phase",
+    "body": ["virtual function void connect_phase(uvm_phase phase);", "  super.connect_phase(phase);", "  $0", "endfunction"]
+  },
+  "phase: run": {
+    "prefix": "run_phase",
+    "body": ["virtual task run_phase(uvm_phase phase);", "  $0", "endtask"]
+  },
+  "phase: report": {
+    "prefix": "report_phase",
+    "body": ["virtual function void report_phase(uvm_phase phase);", "  $0", "endfunction"]
+  },
+  "analysis port": {
+    "prefix": "uvm_analysis_port",
+    "body": ["uvm_analysis_port #(${1:my_item}) ${2:ap};"]
+  },
+  "analysis imp decl": {
+    "prefix": "uvm_analysis_imp_decl",
+    "body": ["`uvm_analysis_imp_decl(_${1:suffix})", "uvm_analysis_imp_$1 #(${2:my_item}, ${3:my_scoreboard}) ${4:imp_$1};"]
+  }
+}

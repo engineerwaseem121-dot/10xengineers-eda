@@ -1,0 +1,17 @@
+# build output (release .vsix files go on GitHub Releases)
+dist/
+*.vsix
+
+# local backups
+.backup-*/
+
+# dependencies and tool output
+node_modules/
+obj_dir/
+__pycache__/
+*.pyc
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.vscode/

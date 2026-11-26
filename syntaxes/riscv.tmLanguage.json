@@ -1,0 +1,84 @@
+{
+  "name": "RISC-V Assembly (10xEngineers EDA)",
+  "scopeName": "source.riscv.tenx",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#preprocessor" },
+    { "include": "#label" },
+    { "include": "#directive" },
+    { "include": "#mnemonic" },
+    { "include": "#registers" },
+    { "include": "#csr" },
+    { "include": "#reloc" },
+    { "include": "#numbers" },
+    { "include": "#operators" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "name": "comment.block.riscv", "begin": "/\\*", "end": "\\*/" },
+        { "name": "comment.line.number-sign.riscv", "match": "(?<![\\w$])#(?!\\s*(include|define|undef|if|ifdef|ifndef|elif|else|endif|error|pragma)\\b).*$" },
+        { "name": "comment.line.double-slash.riscv", "match": "//.*$" },
+        { "name": "comment.line.semicolon.riscv", "match": ";.*$" }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        { "name": "string.quoted.double.riscv", "begin": "\"", "end": "\"", "patterns": [{ "name": "constant.character.escape.riscv", "match": "\\\\." }] },
+        { "name": "string.quoted.single.riscv", "match": "'(\\\\.|[^'])'" }
+      ]
+    },
+    "preprocessor": {
+      "name": "keyword.control.directive.riscv",
+      "match": "^\\s*#\\s*(include|define|undef|if|ifdef|ifndef|elif|else|endif|error|pragma)\\b.*$"
+    },
+    "label": {
+      "patterns": [
+        { "match": "^\\s*([A-Za-z_.$][\\w.$]*)\\s*:", "captures": { "1": { "name": "entity.name.function.label.riscv" } } },
+        { "match": "^\\s*(\\d+)\\s*:", "captures": { "1": { "name": "entity.name.function.label.local.riscv" } } },
+        { "name": "entity.name.function.label.reference.riscv", "match": "\\b\\d+[fb]\\b" }
+      ]
+    },
+    "directive": {
+      "name": "keyword.other.directive.riscv",
+      "match": "(?<![\\w.])\\.(text|data|bss|rodata|section|globl|global|local|weak|type|size|align|p2align|balign|byte|half|2byte|word|4byte|dword|8byte|quad|float|double|string|asciz|ascii|zero|skip|space|equ|set|option|attribute|macro|endm|rept|endr|irp|endr|include|file|ident|comm|lcomm|if|ifdef|ifndef|else|elseif|endif|insn|cfi_\\w+|end|org|loc|uleb128|sleb128|variant_cc|reloc|pushsection|popsection|previous|altmacro|purgem|exitm|err|warning|print|fill|incbin)\\b"
+    },
+    "mnemonic": {
+      "patterns": [
+        {
+          "name": "keyword.control.branch.riscv",
+          "match": "(?<=^|:)\\s*\\b(beq|bne|blt|bge|bltu|bgeu|beqz|bnez|blez|bgez|bltz|bgtz|bgt|ble|bgtu|bleu|jal|jalr|j|jr|ret|call|tail|ecall|ebreak|mret|sret|wfi|c\\.j|c\\.jal|c\\.jr|c\\.jalr|c\\.beqz|c\\.bnez|c\\.ebreak)\\b(?![.\\w])"
+        },
+        {
+          "name": "support.function.mnemonic.riscv",
+          "match": "(?<=^|:)\\s*\\b(c\\.[a-z0-9]+|f[a-z]+(\\.[a-z]+){0,3}|amo[a-z]+\\.[wd](\\.aqrl|\\.aq|\\.rl)?|lr\\.[wd](\\.aqrl|\\.aq|\\.rl)?|sc\\.[wd](\\.aqrl|\\.aq|\\.rl)?|fence(\\.i|\\.tso)?|sfence\\.vma|sext\\.[bhw]|zext\\.[bhw]|[a-z][a-z0-9]*)\\b(?![.\\w])"
+        }
+      ]
+    },
+    "registers": {
+      "patterns": [
+        { "name": "variable.language.register.riscv", "match": "\\b(x([12]?[0-9]|3[01])|zero|ra|sp|gp|tp|fp|t[0-6]|s([0-9]|1[01])|a[0-7])\\b" },
+        { "name": "variable.language.register.float.riscv", "match": "\\b(f([12]?[0-9]|3[01])|ft([0-9]|1[01])|fs([0-9]|1[01])|fa[0-7])\\b" },
+        { "name": "variable.language.register.vector.riscv", "match": "\\bv([12]?[0-9]|3[01])\\b" }
+      ]
+    },
+    "csr": {
+      "name": "support.constant.csr.riscv",
+      "match": "\\b(m|s|u|h)?(status|isa|edeleg|ideleg|ie|tvec|counteren|scratch|epc|cause|tval|ip|hartid|vendorid|archid|impid|atp|envcfg|cycle|instret|cycleh|instreth)\\b|\\b(fflags|frm|fcsr|cycle|time|instret|pmpcfg\\d+|pmpaddr\\d+|mhpmcounter\\d+|mhpmevent\\d+|mcountinhibit|tselect|tdata[123]|dcsr|dpc|dscratch[01])\\b"
+    },
+    "reloc": {
+      "name": "support.function.relocation.riscv",
+      "match": "%(hi|lo|pcrel_hi|pcrel_lo|tprel_hi|tprel_lo|tprel_add|tls_ie_pcrel_hi|tls_gd_pcrel_hi|got_pcrel_hi)\\b"
+    },
+    "numbers": {
+      "patterns": [
+        { "name": "constant.numeric.hex.riscv", "match": "(?<![\\w.])-?0[xX][0-9a-fA-F_]+\\b" },
+        { "name": "constant.numeric.binary.riscv", "match": "(?<![\\w.])-?0[bB][01_]+\\b" },
+        { "name": "constant.numeric.float.riscv", "match": "(?<![\\w.])-?\\d+\\.\\d+([eE][+-]?\\d+)?\\b" },
+        { "name": "constant.numeric.decimal.riscv", "match": "(?<![\\w.])-?\\d+\\b" }
+      ]
+    },
+    "operators": { "name": "keyword.operator.riscv", "match": "[+\\-*/%&|^~<>!=]" }
+  }
+}

@@ -1,0 +1,125 @@
+# Changelog
+
+## 0.12.2
+- **testplan.xlsx is created together with testplan.yaml.** This applies to Generate Test Plan, Generate Testbench, `dvflow init` and `dvflow generate --yes`.
+  - The workbook has Summary, Requirements, Scenarios, Coverage bins, Checkers and Tests sheets, marked NOT RUN until the first regression, which rewrites it with results.
+  - If the plan is already up to date but the Excel file is missing, it is created.
+  - Existing results are kept when the latest run covers every scenario.
+
+## 0.12.1
+- Marketplace listing: new display name, description, keywords and the Testing category.
+- README: new opening, with *Why design-verification engineers switch*, *One extension instead of many* (what it covers, and what to keep alongside it), and a tip to disable overlapping extensions.
+
+## 0.12.0
+- **Waveform: SPI-Flash decoder** (on top of SPI). Gives one transaction per chip-select frame, with:
+  - the opcode name (READ / FAST_READ / PAGE_PROGRAM / sector, block and chip erase / RDSR / RDID / 4-byte variants …), address, data, and the status bits WIP/WEL
+  - an error flag on program, erase or WRSR sent without WREN
+- **Waveform: RISC-V instruction-trace decoder** (clk, valid, pc, insn). Disassembles RV32I, M, Zicsr and the common compressed instructions, shows branches as taken or not taken, and flags illegal encodings. Roles are auto-mapped from RVFI / retire / trace names.
+- **X-trace through RTL drivers.** Walks an X back through `assign`, `always` blocks (including their if/case conditions) and instance port connections to its origin. Each step links to file:line, and the origin comes with an explanation.
+- **Cross-probe.** Right-click → *Go to declaration in RTL*. The opt-in `tenxDebug.wave.crossProbe.followWaveformSelection` setting follows the selection without taking focus. Ambiguous names are never guessed.
+- **Contrast floor** for trace colours (`tenxDebug.wave.theme.minContrast`, default 3:1 WCAG), applied live on theme changes.
+- **Large files.** VCDs are read in 4 MiB chunks, with a size ceiling (`tenxDebug.wave.maxFileMB`, default 256).
+- **One-time prompt** to make the viewer the default for `*.vcd` when an editor opens it as text.
+- **VHDL language id** for `.vhd` / `.vhdl`, so inline values work without a VHDL extension.
+## 0.11.1
+- **Seed ranges.** Run Test, Run Regression, UVM and cocotb prompts, and `--seeds` on the command line, accept one seed (`7`, the same stimulus again), lists (`1,5,9`), ranges (`0:100`, both ends included), stepped ranges (`0:100:10`), `random N` and mixes (`1,2,10:20,random 5`). The prompt validates while you type and shows how many runs it means. Seed 0 is valid. `--seed N --count M` still works.
+
+## 0.11.0
+- **Create Demo Project + Demo Tour.** One command creates a ready-made project (a 4-bit adder with SV, UVM and cocotb testbenches and a test plan) and opens a tour with one button per feature: toolchain, generated files, regression, dashboard, Verilator code coverage, UVM, cocotb, plant a bug, formal counterexample, fix and compare, mutation testing, sign-off. Each step explains what it does and why it matters, and runs with no prompts.
+- **`dvflow init --file <rtl.sv>`** goes from an RTL file to `dvflow.json` and every testbench in one step (template guessed from the RTL; top module = the one nothing else instantiates).
+- **README:** Quick start (5-minute demo), Step by step with your own design (each step with what you get and why it matters), Feature guide for 0.7–0.10, dvflow command line, updated command list.
+- Getting Started walkthrough: new first step *Try the demo*.
+
+## 0.10.0
+- **Synthesis** (*DV: Synthesize DUT*): Yosys generic synthesis of the DUT reports cells, flip-flops, inferred latches with the signal names, logic depth and design problems (undriven nets, multiple drivers, loops), and writes a gate netlist (Verilog, plus JSON that opens as a schematic).
+- **Gate-level simulation** (*DV: Gate-Level Simulation*): the SV testbench re-runs on the synthesized netlist (Icarus or Verilator), with its own dashboard (tagged *gls*; it never overwrites the RTL test plan).
+- **Logic equivalence (LEC):** RTL vs netlist is proven formally. Yosys structural `equiv_*` comes first; for sequential designs whose flip-flops were renamed, a miter with temporal induction proves the outputs equal.
+- **Formal proof with no hand-written properties** (*DV: Formal Proof*): a harness is generated from the template's reference model (`formal/<top>_formal.sv`, `formal/<top>.sby`), with one assertion per checked output and one cover per coverage bin. SymbiYosys proves the DUT equals the spec for every input sequence (k-induction), names the failing output with a counterexample waveform, and reports which coverage bins are reachable.
+- **DV: Sign-off Check** runs lint (Verilator -Wall), synthesis, LEC, gate-level simulation and formal in one go: a checklist report (`runs/<id>-signoff/signoff.html`), a *Sign-off* panel on the dashboard Overview, and `dvflow signoff` on the command line.
+- Generated UVM / cocotb / SV testbenches unchanged; walkthrough step added.
+
+## 0.9.0
+- **Dashboard for UVM runs.** Every UVM run (any simulator) now gets the same dashboard as a regression: runs with scoreboard check counts, log and waveform, scenarios and requirements (UVM tests mapped to the test plan), failures, History and Compare, plus Rerun from the run panel. Questa covergroup and code coverage show in Coverage.
+- **cocotb (Python) testbench generator.** *DV: Generate Testbench → cocotb* (or *All*) writes `cocotb/test_<top>.py` with a Python reference model for each template (adder, counter, up/down counter, register, latch, shift register, pipeline; a fill-in skeleton for custom), tests with the same names and scenario IDs as the SV and UVM testbenches, and a Makefile for Icarus or Verilator.
+- **Run cocotb from VS Code:** *DV: Run Test → cocotb testbench*. It runs in the Docker toolchain (or a local cocotb), one test and seed per run, and opens the dashboard. CLI: `dvflow cocotb`, `dvflow generate --mode cocotb|all`.
+- Toolchain image: adds `python3-dev`. cocotb needs libpython to embed Python in the simulator; before this it was installed but could not run.
+
+## 0.8.0
+- **Mutation testing (DV: Mutation Test / `dvflow mutate`)** measures testbench quality. It plants small bugs in copies of the DUT (operator swaps, flipped constants, edge changes, dropped inversions), runs the regression on each, and reports the share caught. Survivors are formally checked with Yosys, so a mutant that is logically identical to the original is marked *equivalent* instead of being reported as a testbench hole. The report links each mutant to its line; the dashboard Overview gets a *Testbench quality* panel.
+- **Verilator code coverage:** with coverage on, the `coverage.dat` of every run is merged (`verilator_coverage`) into line, branch, expression and toggle coverage for the DUT files, a list of uncovered DUT lines with what was missed there (clickable in the dashboard), annotated sources and LCOV. Works in the Docker toolchain, so code coverage no longer needs a commercial license.
+- **Getting Started walkthrough** (Welcome page → *10xEngineers EDA: from one RTL file to a verified design*): seven steps with a button each, from toolchain setup to mutation testing.
+- Standalone HTML reports (mutation testing) open in an editor panel whose links jump to the source line.
+
+## 0.7.3
+- Fixed: picking the DUT file again as a dependency in **DV: Select DUT** listed it twice and every simulator failed with "module already declared". Duplicates are now removed, also in existing `dvflow.json` files.
+- Fixed: a project with no coverage bins (the "custom" template) generated a `case` with two `default` items, which Verilator rejects.
+- A "custom" project whose reference model is still the placeholder now stops before simulating, and says how to fix it, instead of failing every check.
+
+## 0.7.2
+- **Dashboard: History tab.** Pass-rate and coverage trend across every run in runs/ (simple TB and UVM, all simulators), with filters by simulator, testbench and full suites. Runs that executed nothing (for example licence-blocked) show as markers instead of 0%. Click a point to open that run.
+- **Compare runs:** newly failing, fixed and unchanged tests, time and coverage-bin differences. Link with `#cmp-<run id>`.
+- **Waveform viewer in the run detail panel:** the run's VCD is embedded, with zoom, pan, a cursor showing every signal's value and a signal filter. Times printed in the log (`t=125 ns`, `@ 175000`) jump the cursor.
+- **Rerun with waves** from the run detail panel. In VS Code it starts the run and opens its dashboard; in a browser it copies the command.
+- **Ctrl+K quick search** across runs, bins, scenarios, requirements, tabs and earlier runs.
+- Runs table: duration bar per run.
+
+## 0.7.1
+- **UVM on Verilator works** (no commercial license): the toolchain image now ships Verilator 5.054 from the official prebuilt image (image build ~1 min instead of ~20) and the CHIPS Alliance UVM 2020.3.2 kit for Verilator.
+- Verilator UVM builds compile inside the container's own filesystem (thousands of C++ files are far too slow on a Windows-mounted folder) with a separate 30-minute build timeout.
+- Generated UVM testbenches compile on Verilator: clocking-block modports and covergroups are guarded with `ifndef VERILATOR`.
+- DV: Run Test → UVM lets you select several tests at once.
+- Fixed: container runs returned before the tool finished (`setsid -w`); WSL no longer stops the toolchain container between runs; SymbiYosys works in the image.
+
+## 0.7.0
+- **Open-source toolchain in a container.** Icarus, Verilator (with UVM), GHDL, Yosys, SymbiYosys, cocotb/pyuvm and make can now run from a Docker image, so users only install Docker. The engine can be Docker Desktop, Docker Engine inside WSL, Podman, or Docker on Linux/macOS.
+  - In the default `auto` mode, local tools are used when installed and the container otherwise. Every tool call goes through it: DV run/regression/doctor, UVM on Verilator, lint, schematics and formal.
+  - New commands: *Set Up Open-Source Toolchain* (build or pull the image), *Status*, *Open Terminal in Container*, *Switch Mode*, *Stop Containers*. A status bar item shows the toolchain state, and the CLI gets `dvflow toolchain status|build|stop` plus `--toolchain`.
+  - The extension offers to set it up once when no open-source simulator is installed.
+- **DV: Run Test** asks for the testbench (simple or UVM) and the simulator: Icarus/Questa/VCS/Verilator for simple testbenches, Questa/VCS/Verilator for UVM. New `dvflow uvm` command.
+- **Questa coverage:** per-run UCDBs are merged with `vcover` into summary, details and HTML reports. Code coverage is reported for the DUT's design units only, and covergroup coverage for UVM runs. Run Test and Run Regression ask whether to collect code coverage.
+- **DV dashboard redesigned:** verdict header, KPI rings, a test × seed grid, a run detail panel with the embedded log (error highlighting, search, errors only), coverage heatmap, traceability tree, failure triage, light/dark/auto theme and keyboard shortcuts.
+- **UVM: Show Architecture Diagram** (UVM Verification Hierarchy view): components, TLM ports and connections, the sequences started per test, the virtual interface hand-off, a phase map and config_db cross-reference. Generated from the sources, with SVG export.
+
+## 0.6.3
+- Lint with Icarus skips files it cannot parse (UVM, classes, concurrent SVA, clocking blocks, covergroups) instead of reporting false errors, and says why when run from the command.
+- Lint ignores "Unknown module type" from Icarus: a module defined in another file is not a defect of the file being linted.
+- Waveform search accepts full paths without the bit range, e.g. `dut.state == 4`.
+
+## 0.6.2
+- FSM extraction understands casts around the next-state value, e.g. `next_state = state_t'(din ? S_1 : S_IDLE);`. Before, such FSMs showed no transitions.
+- Lint finds Icarus Verilog in `C:\iverilog\bin` (or `/usr/local/bin`, `/opt/homebrew/bin`) when it is not on PATH.
+- DV flow: `dvflow.cmd` generated by the CLI on the editor's runtime now points at that runtime instead of a missing `node`.
+
+## 0.6.1
+- Renamed to **10xEngineers EDA**. The extension ID is now `10xengineers.10xengineer-eda`, and the MCP server is named `10xengineer-eda`. Settings (`tenxDebug.*`) and command IDs are unchanged.
+- Waveforms: a `<dump>.tenxview.json` file next to a dump sets the starting view (rows, decoders, markers, cursor, tools tab).
+
+## 0.6.0
+- Waveform viewer:
+  - **named multi-markers** (Markers tab, Δ to cursor and to the previous marker, rename, `N` to jump)
+  - per-signal color, stroke and fill, and renderers bus / analog step / linear
+  - radix unsigned, UTF-8 and float
+  - WaveTrace-compatible settings `tenxDebug.wave.*`: display, keyboard, mouse and palette
+- **Tools panel**:
+  - 9 protocol decoders (UART, SPI, I²C, APB, AHB-Lite, AXI4-Lite, AXI-Stream, Wishbone, valid/ready) with decoded rows and a transaction table
+  - multi-signal pattern search
+  - switching activity
+  - X-trace
+  - log correlation for cocotb, UVM, Questa and `$display` lines
+- GTKWave `.gtkw` import. `.fst` / `.lxt` / `.lxt2` / `.ghw` open through configurable converters.
+- Waveform diff, opened side by side at the first divergence.
+- Signal values at the cursor are shown inline in Verilog, SystemVerilog and VHDL.
+- WaveDrom: own renderer, and SVA generation from nodes and edges (exact cycle delays or labelled windows), exported as a `.sv` checker.
+- Yosys JSON schematic: click through to the source, "What drives this?" / "What does it drive?" cones, and synthesize with yosys.
+- Lint waivers: `.tenx-waivers.json` plus inline `tenx-lint-waive`, with quick fixes.
+
+## 0.1.0
+- Initial release.
+- VCD waveform viewer: signal browser, zoom/pan, cursor/marker, radix, live reload.
+- FSM extraction from Verilog/SystemVerilog, live diagrams, SVG/Mermaid/DOT export, FSM lint checks.
+- FSM state decoding and FSM coverage in the waveform viewer.
+- Verilog / SystemVerilog / UVM syntax highlighting, outline, go-to-definition, snippets, UVM generator.
+- Verilator / Icarus Verilog lint integration.
+- Coverage dashboard: code + functional coverage from UCDB / vcover / LCOV / Verilator. Hit, hole, code and assertion sheets, analysis with constraint suggestions, Excel/CSV export, editor highlighting, trend.
+- UVM environment generator driven by DUT port parsing: active/passive config, coverage, scoreboard, SVA, source list, Questa scripts.
+- Questa integration: auto-detects the install on Windows and Linux, runs simulations, merges UCDBs.

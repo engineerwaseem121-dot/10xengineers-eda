@@ -1,0 +1,50 @@
+# Example testplan for traffic_light.sv — load it in the coverage dashboard (Testplan… button)
+name: traffic_light
+spec: traffic_light.sv
+goal: 100
+features:
+  - id: TL-01
+    name: Normal light cycle
+    description: The controller shall cycle MAIN_GREEN -> MAIN_YELLOW -> ALL_RED -> SIDE_GREEN -> SIDE_YELLOW.
+    priority: high
+    coverage:
+      - tl_cg::cp_state::auto[MAIN_GREEN]
+      - tl_cg::cp_state::auto[MAIN_YELLOW]
+      - tl_cg::cp_state::auto[ALL_RED]
+      - tl_cg::cp_state::auto[SIDE_GREEN]
+      - tl_cg::cp_state::auto[SIDE_YELLOW]
+    assertions:
+      - a_main_light_known
+  - id: TL-02
+    name: Emergency flash mode
+    description: On emergency the controller shall enter FLASH and return through ALL_RED.
+    priority: high
+    coverage:
+      - tl_cg::cp_state::auto[FLASH]
+      - tl_cg::cp_emergency
+      - cover:c_flash_entered
+  - id: TL-03
+    name: Car sensor
+    description: A waiting car shall be able to end MAIN_GREEN after the minimum green time.
+    priority: medium
+    coverage:
+      - tl_cg::cp_car_waiting
+      - tl_cg::x_car_emergency
+  - id: TL-04
+    name: Timer range
+    description: The time-in-state counter shall cover zero, low, mid and high values.
+    priority: medium
+    coverage:
+      - tl_cg::cp_timer
+  - id: TL-05
+    name: Reset coverage
+    description: Reset shall be asserted and released during simulation.
+    priority: low
+    coverage:
+      - tl_reset_cg::cp_rst
+  - id: TL-06
+    name: Side light output check
+    description: Side lights shall never be X/Z after reset.
+    priority: high
+    assertions:
+      - a_side_light_known

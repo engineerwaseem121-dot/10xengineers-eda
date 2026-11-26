@@ -1,0 +1,410 @@
+{
+  "name": "10xengineer-eda",
+  "displayName": "10xEngineers EDA: Verilog, SystemVerilog & UVM Verification Suite",
+  "description": "All-in-one Verilog, SystemVerilog and UVM design-verification suite. Generates SV, UVM and cocotb testbenches from your RTL and runs regressions on Icarus, Verilator (UVM included, no license), Questa or VCS, with the open-source tools in Docker. Adds a waveform viewer with protocol decoders and X-trace, coverage and test plans, formal, synthesis, gate-level sim and sign-off. One extension instead of ten.",
+  "version": "0.12.2",
+  "publisher": "10xengineers",
+  "author": {
+    "name": "Waseem Abbas"
+  },
+  "license": "MIT",
+  "icon": "icon.png",
+  "galleryBanner": {
+    "color": "#0f172a",
+    "theme": "dark"
+  },
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": ["Programming Languages", "Debuggers", "Testing", "Visualization", "Linters", "Snippets"],
+  "keywords": ["verilog", "systemverilog", "uvm", "testbench", "design verification", "waveform viewer", "vcd", "waveform", "verilator", "icarus", "questa", "cocotb", "coverage", "regression", "testplan", "formal", "yosys", "synthesis", "gate level simulation", "lint", "fsm", "protocol decoder", "wavedrom", "rtl", "hdl", "asic", "fpga", "eda", "simulation", "riscv"],
+  "main": "./extension.js",
+  "capabilities": {
+    "untrustedWorkspaces": { "supported": "limited", "description": "Viewing works everywhere; generating files and running simulators requires a trusted workspace." }
+  },
+  "activationEvents": [
+    "onLanguage:verilog",
+    "onLanguage:systemverilog",
+    "onCustomEditor:tenxDebug.waveform",
+    "workspaceContains:**/*.vcd",
+    "workspaceContains:**/*.ucdb",
+    "workspaceContains:**/run.do",
+    "onView:tenxDebug.fsmExplorer",
+    "onView:tenxDebug.waveFiles",
+    "onView:tenxDebug.coverageFiles",
+    "onView:tenxDebug.designHierarchy",
+    "onView:tenxDebug.uvmHierarchy",
+    "onLanguage:riscv",
+    "workspaceContains:**/*.testplan",
+    "workspaceContains:**/regression.json",
+    "workspaceContains:**/dvflow.json",
+    "workspaceContains:**/*.{fst,ghw,lxt,lxt2,wavedrom,wdjson}",
+    "onLanguage:vhdl"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "vhdl",
+        "aliases": ["VHDL", "vhdl"],
+        "extensions": [".vhd", ".vhdl"]
+      },
+      {
+        "id": "verilog",
+        "aliases": ["Verilog", "verilog"],
+        "extensions": [".v", ".vh", ".vl"],
+        "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "systemverilog",
+        "aliases": ["SystemVerilog", "systemverilog", "UVM"],
+        "extensions": [".sv", ".svh", ".svi", ".svp"],
+        "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "riscv",
+        "aliases": ["RISC-V Assembly", "riscv", "RISC-V"],
+        "extensions": [".s", ".S", ".asm", ".rvs"],
+        "configuration": "./language-configuration-riscv.json"
+      },
+      {
+        "id": "linkerscript",
+        "aliases": ["Linker Script", "ld"],
+        "extensions": [".ld", ".lds", ".x"],
+        "configuration": "./language-configuration-ld.json"
+      },
+      {
+        "id": "yaml",
+        "extensions": [".testplan"]
+      },
+      {
+        "id": "jsonc",
+        "extensions": [".wavedrom", ".wdjson"]
+      }
+    ],
+    "yamlValidation": [
+      { "fileMatch": ["*.testplan"], "url": "./schemas/testplan.schema.json" }
+    ],
+    "jsonValidation": [
+      { "fileMatch": ["regression*.json"], "url": "./schemas/regression.schema.json" }
+    ],
+    "mcpServerDefinitionProviders": [
+      { "id": "tenxDebug.mcp", "label": "10xEngineers EDA (coverage, testplan, FSM, UVM)" }
+    ],
+    "grammars": [
+      {
+        "language": "verilog",
+        "scopeName": "source.verilog.tenx",
+        "path": "./syntaxes/verilog.tmLanguage.json"
+      },
+      {
+        "language": "systemverilog",
+        "scopeName": "source.systemverilog.tenx",
+        "path": "./syntaxes/systemverilog.tmLanguage.json"
+      },
+      {
+        "language": "riscv",
+        "scopeName": "source.riscv.tenx",
+        "path": "./syntaxes/riscv.tmLanguage.json"
+      },
+      {
+        "language": "linkerscript",
+        "scopeName": "source.ld.tenx",
+        "path": "./syntaxes/linkerscript.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      { "language": "verilog", "path": "./snippets/hdl.json" },
+      { "language": "systemverilog", "path": "./snippets/hdl.json" },
+      { "language": "systemverilog", "path": "./snippets/sv.json" },
+      { "language": "systemverilog", "path": "./snippets/uvm.json" }
+    ],
+    "customEditors": [
+      {
+        "viewType": "tenxDebug.waveform",
+        "displayName": "10xEngineers EDA Waveform Viewer",
+        "selector": [{ "filenamePattern": "*.vcd" }, { "filenamePattern": "*.fst" }, { "filenamePattern": "*.ghw" }, { "filenamePattern": "*.lxt" }, { "filenamePattern": "*.lxt2" }],
+        "priority": "default"
+      }
+    ],
+    "commands": [
+      { "command": "tenxDebug.openWaveform", "title": "Open Waveform (VCD)", "category": "10xEngineers EDA", "icon": "$(pulse)" },
+      { "command": "tenxDebug.showFsm", "title": "Show FSM Diagram", "category": "10xEngineers EDA", "icon": "$(type-hierarchy)" },
+      { "command": "tenxDebug.refreshFsms", "title": "Rescan FSMs in Workspace", "category": "10xEngineers EDA", "icon": "$(refresh)" },
+      { "command": "tenxDebug.refreshWaves", "title": "Refresh Waveform List", "category": "10xEngineers EDA", "icon": "$(refresh)" },
+      { "command": "tenxDebug.copyFsmMermaid", "title": "Copy FSM as Mermaid", "category": "10xEngineers EDA" },
+      { "command": "tenxDebug.lintFile", "title": "Lint Current File (Verilator / Icarus)", "category": "10xEngineers EDA" },
+      { "command": "tenxDebug.newUvmAgent", "title": "Generate UVM Environment (from DUT)", "category": "10xEngineers EDA", "icon": "$(wand)" },
+      { "command": "tenxDebug.openCoverage", "title": "Open Coverage Report (UCDB / vcover / LCOV / Verilator)", "category": "10xEngineers EDA", "icon": "$(graph)" },
+      { "command": "tenxDebug.coverageDashboard", "title": "Show Coverage Dashboard", "category": "10xEngineers EDA", "icon": "$(dashboard)" },
+      { "command": "tenxDebug.toggleCoverageHighlight", "title": "Toggle Coverage Highlighting in Editor", "category": "10xEngineers EDA" },
+      { "command": "tenxDebug.refreshCoverage", "title": "Refresh Coverage List", "category": "10xEngineers EDA", "icon": "$(refresh)" },
+      { "command": "tenxDebug.configureQuesta", "title": "Configure Questa / ModelSim Path", "category": "10xEngineers EDA", "icon": "$(gear)" },
+      { "command": "tenxDebug.runQuesta", "title": "Run Questa Simulation (+ coverage)", "category": "10xEngineers EDA", "icon": "$(play)" },
+      { "command": "tenxDebug.addToSourceList", "title": "Add to Source List (files.f)", "category": "10xEngineers EDA" },
+      { "command": "tenxDebug.validateSourceList", "title": "Validate Source List (files.f)", "category": "10xEngineers EDA" },
+      { "command": "tenxDebug.loadTestplan", "title": "Load Testplan (.testplan / vplan.csv)", "category": "10xEngineers EDA", "icon": "$(checklist)" },
+      { "command": "tenxDebug.specToTestplan", "title": "Extract Testplan from Spec", "category": "10xEngineers EDA", "icon": "$(book)" },
+      { "command": "tenxDebug.runRegression", "title": "Run Regression (regression.json)", "category": "10xEngineers EDA", "icon": "$(run-all)" },
+      { "command": "tenxDebug.validateTestbench", "title": "UVM: Validate Testbench", "category": "10xEngineers EDA", "icon": "$(verified)" },
+      { "command": "tenxDebug.updateSourceList", "title": "UVM: Update Source List", "category": "10xEngineers EDA" },
+      { "command": "tenxDebug.genSeqItem", "title": "UVM: Generate Sequence Item", "category": "10xEngineers EDA" },
+      { "command": "tenxDebug.genBasicSequence", "title": "UVM: Generate Basic Sequence", "category": "10xEngineers EDA" },
+      { "command": "tenxDebug.classGraph", "title": "UVM: Show Class Graph", "category": "10xEngineers EDA", "icon": "$(git-merge)" },
+      { "command": "tenxDebug.uvmArchitecture", "title": "UVM: Show Architecture Diagram", "category": "10xEngineers EDA", "icon": "$(type-hierarchy)" },
+      { "command": "tenxDebug.demo.create", "title": "Create Demo Project (guided tour)", "category": "10xEngineers EDA", "icon": "$(rocket)" },
+      { "command": "tenxDebug.demo.tour", "title": "Open Demo Tour", "category": "10xEngineers EDA", "icon": "$(play-circle)" },
+      { "command": "tenxDebug.dv.signoff", "title": "DV: Sign-off Check (lint, synthesis, LEC, gate-level sim, formal)", "category": "10xEngineers EDA", "icon": "$(verified)" },
+      { "command": "tenxDebug.dv.synth", "title": "DV: Synthesize DUT (Yosys)", "category": "10xEngineers EDA", "icon": "$(circuit-board)" },
+      { "command": "tenxDebug.dv.gls", "title": "DV: Gate-Level Simulation (synthesize + equivalence + run testbench on netlist)", "category": "10xEngineers EDA" },
+      { "command": "tenxDebug.dv.formalProve", "title": "DV: Formal Proof (DUT vs reference model, all inputs)", "category": "10xEngineers EDA", "icon": "$(law)" },
+      { "command": "tenxDebug.dv.mutate", "title": "DV: Mutation Test (testbench quality)", "category": "10xEngineers EDA", "icon": "$(bug)" },
+      { "command": "tenxDebug.toolchain.setup", "title": "Set Up Open-Source Toolchain (Docker)", "category": "10xEngineers EDA", "icon": "$(package)" },
+      { "command": "tenxDebug.toolchain.status", "title": "Open-Source Toolchain: Status", "category": "10xEngineers EDA", "icon": "$(info)" },
+      { "command": "tenxDebug.toolchain.terminal", "title": "Open-Source Toolchain: Open Terminal in Container", "category": "10xEngineers EDA", "icon": "$(terminal)" },
+      { "command": "tenxDebug.toolchain.mode", "title": "Open-Source Toolchain: Switch Mode (auto / container / local)", "category": "10xEngineers EDA" },
+      { "command": "tenxDebug.toolchain.stop", "title": "Open-Source Toolchain: Stop Containers", "category": "10xEngineers EDA" },
+      { "command": "tenxDebug.showDrivers", "title": "Show Drivers", "category": "10xEngineers EDA" },
+      { "command": "tenxDebug.showLoads", "title": "Show Loads", "category": "10xEngineers EDA" },
+      { "command": "tenxDebug.showAssertCover", "title": "Show Assertions & Coverage Using Signal", "category": "10xEngineers EDA" },
+      { "command": "tenxDebug.refreshHierarchy", "title": "Refresh Hierarchy", "category": "10xEngineers EDA", "icon": "$(refresh)" },
+      { "command": "tenxDebug.filterHierarchy", "title": "Filter Hierarchy", "category": "10xEngineers EDA", "icon": "$(filter)" },
+      { "command": "tenxDebug.copyMcpConfig", "title": "Copy MCP Server Config (for AI agents)", "category": "10xEngineers EDA" },
+      { "command": "tenxDebug.dv.selectDut", "title": "DV: Select DUT", "category": "10xEngineers EDA", "icon": "$(target)" },
+      { "command": "tenxDebug.dv.generateTestPlan", "title": "DV: Generate Test Plan", "category": "10xEngineers EDA" },
+      { "command": "tenxDebug.dv.generateTestbench", "title": "DV: Generate Testbench", "category": "10xEngineers EDA", "icon": "$(wand)" },
+      { "command": "tenxDebug.dv.runTest", "title": "DV: Run Test", "category": "10xEngineers EDA", "icon": "$(play)" },
+      { "command": "tenxDebug.dv.runRegression", "title": "DV: Run Regression", "category": "10xEngineers EDA", "icon": "$(run-all)" },
+      { "command": "tenxDebug.dv.openDashboard", "title": "DV: Open Dashboard", "category": "10xEngineers EDA", "icon": "$(dashboard)" },
+      { "command": "tenxDebug.dv.rerunFailed", "title": "DV: Rerun Failed Test", "category": "10xEngineers EDA" },
+      { "command": "tenxDebug.dv.openFailure", "title": "DV: Open Failure Artifacts", "category": "10xEngineers EDA" },
+      { "command": "tenxDebug.dv.capabilities", "title": "DV: Show Simulator Capabilities", "category": "10xEngineers EDA" },
+      { "command": "tenxDebug.dv.aiSummarize", "title": "DV: Summarize Failure with AI (opt-in)", "category": "10xEngineers EDA" },
+      { "command": "tenxDebug.dv.aiDraftScenarios", "title": "DV: Draft Scenarios with AI (opt-in)", "category": "10xEngineers EDA" },
+      { "command": "tenxDebug.dv.configureSimulators", "title": "DV: Configure Simulators (path & per-user license)", "category": "10xEngineers EDA", "icon": "$(gear)" },
+      { "command": "tenxDebug.dv.doctor", "title": "DV: Doctor (installation + license smoke)", "category": "10xEngineers EDA", "icon": "$(pulse)" },
+      { "command": "tenxDebug.dv.retry", "title": "DV: Retry Last Run (same simulator, test, seed)", "category": "10xEngineers EDA", "icon": "$(debug-restart)" },
+      { "command": "tenxDebug.dv.selectSimulator", "title": "DV: Select Simulator", "category": "10xEngineers EDA" },
+      { "command": "tenxDebug.dv.runFormal", "title": "DV: Run Formal (SymbiYosys)", "category": "10xEngineers EDA" },
+      { "command": "tenxDebug.dv.exportTestPlanExcel", "title": "DV: Export Test Plan to Excel (with latest results)", "category": "10xEngineers EDA" },
+      { "command": "tenxDebug.openCounterexample", "title": "Open Counterexample in 10xEngineers EDA", "category": "10xEngineer RTL Regression Explorer", "icon": "$(pulse)" },
+      { "command": "tenxDebug.wave.diff", "title": "Waveform: Compare Two Waveforms (diff)", "category": "10xEngineers EDA", "icon": "$(diff)" },
+      { "command": "tenxDebug.wave.toggleInlineValues", "title": "Waveform: Toggle Inline Signal Values in RTL", "category": "10xEngineers EDA" },
+      { "command": "tenxDebug.wavedrom.preview", "title": "WaveDrom: Preview Timing Diagram + Generate SVA", "category": "10xEngineers EDA", "icon": "$(graph-line)" },
+      { "command": "tenxDebug.wavedrom.exportSva", "title": "WaveDrom: Export Assertions (.sv)", "category": "10xEngineers EDA" },
+      { "command": "tenxDebug.netlist.open", "title": "Schematic: Open Yosys JSON Netlist", "category": "10xEngineers EDA", "icon": "$(circuit-board)" },
+      { "command": "tenxDebug.netlist.synthesize", "title": "Schematic: Synthesize with Yosys and Show", "category": "10xEngineers EDA" },
+      { "command": "tenxDebug.netlist.whatDrives", "title": "Schematic: What Drives This?", "category": "10xEngineers EDA" },
+      { "command": "tenxDebug.netlist.whatLoads", "title": "Schematic: What Does This Drive?", "category": "10xEngineers EDA" },
+      { "command": "tenxDebug.lint.waive", "title": "Lint: Waive Finding", "category": "10xEngineers EDA" },
+      { "command": "tenxDebug.lint.openWaivers", "title": "Lint: Open Waivers File", "category": "10xEngineers EDA" }
+    ],
+    "taskDefinitions": [
+      {
+        "type": "dvflow",
+        "required": ["command"],
+        "properties": {
+          "project": { "type": "string", "description": "DV project folder (contains dvflow.json)" },
+          "command": { "type": "string", "enum": ["regress", "doctor", "retry"], "description": "dvflow command; regress writes runs/<id>/results.json + results.ndjson which the 10xEngineer RTL Regression Explorer reads" }
+        }
+      },
+      {
+        "type": "tenxDebug",
+        "required": ["task"],
+        "properties": {
+          "task": { "type": "string", "description": "10xEngineers EDA task kind" },
+          "test": { "type": "string", "description": "UVM test name" }
+        }
+      }
+    ],
+    "menus": {
+      "testing/item/context": [
+        { "command": "tenxDebug.openCounterexample", "when": "testId in tenxDebug.cexTests", "group": "inline" }
+      ],
+      "editor/context": [
+        { "command": "tenxDebug.showDrivers", "when": "resourceLangId == systemverilog || resourceLangId == verilog", "group": "10xdebug@1" },
+        { "command": "tenxDebug.showLoads", "when": "resourceLangId == systemverilog || resourceLangId == verilog", "group": "10xdebug@2" },
+        { "command": "tenxDebug.showAssertCover", "when": "resourceLangId == systemverilog || resourceLangId == verilog", "group": "10xdebug@3" },
+        { "command": "tenxDebug.netlist.whatDrives", "when": "resourceLangId == systemverilog || resourceLangId == verilog", "group": "10xdebug@5" },
+        { "command": "tenxDebug.netlist.whatLoads", "when": "resourceLangId == systemverilog || resourceLangId == verilog", "group": "10xdebug@6" },
+        { "command": "tenxDebug.wavedrom.preview", "when": "resourceExtname == .wavedrom || resourceExtname == .wdjson || resourceExtname == .json", "group": "10xdebug@7" },
+        { "command": "tenxDebug.specToTestplan", "when": "resourceExtname == .md || resourceExtname == .txt", "group": "10xdebug@4" }
+      ],
+      "editor/title": [
+        {
+          "command": "tenxDebug.showFsm",
+          "when": "resourceLangId == systemverilog || resourceLangId == verilog",
+          "group": "navigation"
+        }
+      ],
+      "explorer/context": [
+        { "command": "tenxDebug.openWaveform", "when": "resourceExtname =~ /^\\.(vcd|fst|ghw|lxt2?)$/", "group": "navigation" },
+        { "command": "tenxDebug.wave.diff", "when": "resourceExtname =~ /^\\.(vcd|fst|ghw|lxt2?)$/", "group": "navigation" },
+        { "command": "tenxDebug.wavedrom.preview", "when": "resourceExtname == .wavedrom || resourceExtname == .wdjson", "group": "navigation" },
+        { "command": "tenxDebug.netlist.open", "when": "resourceExtname == .json", "group": "10xdebug" },
+        { "command": "tenxDebug.netlist.synthesize", "when": "resourceLangId == systemverilog || resourceLangId == verilog", "group": "10xdebug" },
+        { "command": "tenxDebug.showFsm", "when": "resourceLangId == systemverilog || resourceLangId == verilog", "group": "navigation" },
+        { "command": "tenxDebug.openCoverage", "when": "resourceExtname == .ucdb || resourceExtname == .info || resourceExtname == .dat || resourceFilename =~ /cov/i", "group": "navigation" },
+        { "command": "tenxDebug.dv.selectDut", "when": "resourceLangId == systemverilog || resourceLangId == verilog", "group": "10xdebug@0" },
+        { "command": "tenxDebug.newUvmAgent", "when": "resourceLangId == systemverilog || resourceLangId == verilog", "group": "10xdebug" },
+        { "command": "tenxDebug.addToSourceList", "when": "resourceLangId == systemverilog || resourceLangId == verilog", "group": "10xdebug" },
+        { "command": "tenxDebug.runQuesta", "when": "explorerResourceIsFolder || resourceFilename == run.do", "group": "10xdebug" }
+      ],
+      "view/title": [
+        { "command": "tenxDebug.refreshFsms", "when": "view == tenxDebug.fsmExplorer", "group": "navigation" },
+        { "command": "tenxDebug.refreshWaves", "when": "view == tenxDebug.waveFiles", "group": "navigation" },
+        { "command": "tenxDebug.openWaveform", "when": "view == tenxDebug.waveFiles", "group": "navigation" },
+        { "command": "tenxDebug.refreshCoverage", "when": "view == tenxDebug.coverageFiles", "group": "navigation" },
+        { "command": "tenxDebug.openCoverage", "when": "view == tenxDebug.coverageFiles", "group": "navigation" },
+        { "command": "tenxDebug.runQuesta", "when": "view == tenxDebug.coverageFiles", "group": "navigation" },
+        { "command": "tenxDebug.configureQuesta", "when": "view == tenxDebug.coverageFiles", "group": "navigation" },
+        { "command": "tenxDebug.runRegression", "when": "view == tenxDebug.coverageFiles", "group": "navigation" },
+        { "command": "tenxDebug.loadTestplan", "when": "view == tenxDebug.coverageFiles", "group": "navigation" },
+        { "command": "tenxDebug.filterHierarchy", "when": "view == tenxDebug.designHierarchy || view == tenxDebug.uvmHierarchy", "group": "navigation" },
+        { "command": "tenxDebug.refreshHierarchy", "when": "view == tenxDebug.designHierarchy || view == tenxDebug.uvmHierarchy", "group": "navigation" },
+        { "command": "tenxDebug.uvmArchitecture", "when": "view == tenxDebug.uvmHierarchy", "group": "navigation@0" },
+        { "command": "tenxDebug.classGraph", "when": "view == tenxDebug.uvmHierarchy", "group": "navigation" },
+        { "command": "tenxDebug.validateTestbench", "when": "view == tenxDebug.uvmHierarchy", "group": "navigation" }
+      ],
+      "view/item/context": [
+        { "command": "tenxDebug.uvmArchitecture", "when": "view == tenxDebug.uvmHierarchy && viewItem == uvmTest", "group": "inline" },
+        { "command": "tenxDebug.uvmArchitecture", "when": "view == tenxDebug.uvmHierarchy && viewItem == uvmTest", "group": "10xdebug@1" }
+      ]
+    },
+    "walkthroughs": [
+      {
+        "id": "tenxDebug.gettingStarted",
+        "title": "10xEngineers EDA: from one RTL file to a verified design",
+        "description": "Take a single Verilog/SystemVerilog file to a self-checking testbench, UVM, a regression dashboard and a testbench-quality score. No simulator install needed.",
+        "steps": [
+          { "id": "demo", "title": "Try the demo (5 minutes)", "description": "Creates a ready-made project (a 4-bit adder with SV, UVM and cocotb testbenches) and opens a Demo Tour: one button per feature, each explaining what it does and why it matters.\n[Create Demo Project](command:tenxDebug.demo.create)", "media": { "markdown": "media/walkthrough/demo.md" }, "completionEvents": ["onCommand:tenxDebug.demo.create", "onCommand:tenxDebug.demo.tour"] },
+          { "id": "tools", "title": "Set up the open-source tools", "description": "Icarus, Verilator (with UVM), Yosys, SymbiYosys and cocotb run from a Docker image, so you install only Docker.\n[Set Up Open-Source Toolchain](command:tenxDebug.toolchain.setup)", "media": { "markdown": "media/walkthrough/tools.md" }, "completionEvents": ["onCommand:tenxDebug.toolchain.setup"] },
+          { "id": "dut", "title": "Select your DUT", "description": "Open your RTL file, then pick the top module and the template that matches what it does (the suggested one is first).\n[DV: Select DUT](command:tenxDebug.dv.selectDut)", "media": { "markdown": "media/walkthrough/dut.md" }, "completionEvents": ["onCommand:tenxDebug.dv.selectDut"] },
+          { "id": "generate", "title": "Generate the testbenches", "description": "One click creates a self-checking SystemVerilog testbench, a full UVM environment and a test plan with requirements.\n[DV: Generate Testbench](command:tenxDebug.dv.generateTestbench)", "media": { "markdown": "media/walkthrough/generate.md" }, "completionEvents": ["onCommand:tenxDebug.dv.generateTestbench"] },
+          { "id": "run", "title": "Run a regression", "description": "Pick the simulator (Icarus, Verilator, Questa, VCS), the suite and the seeds. Turn on code coverage to see what the tests never exercise.\n[DV: Run Regression](command:tenxDebug.dv.runRegression)", "media": { "markdown": "media/walkthrough/run.md" }, "completionEvents": ["onCommand:tenxDebug.dv.runRegression", "onCommand:tenxDebug.dv.runTest"] },
+          { "id": "dashboard", "title": "Explore the dashboard", "description": "Click any run for its log and waveform, compare runs in History, check traceability, and press Ctrl+K to search.\n[DV: Open Dashboard](command:tenxDebug.dv.openDashboard)", "media": { "markdown": "media/walkthrough/dashboard.md" }, "completionEvents": ["onCommand:tenxDebug.dv.openDashboard"] },
+          { "id": "uvm", "title": "See and run the UVM testbench", "description": "View the generated UVM architecture, then run the UVM tests on Verilator with no license.\n[UVM: Show Architecture Diagram](command:tenxDebug.uvmArchitecture)", "media": { "markdown": "media/walkthrough/uvm.md" }, "completionEvents": ["onCommand:tenxDebug.uvmArchitecture"] },
+          { "id": "signoff", "title": "Synthesize, gate-level simulate and prove", "description": "Synthesis (latches, logic depth), logic equivalence, gate-level simulation of your testbench on the netlist, and a formal proof that the DUT matches the spec for every input. All open-source, in one click.\n[DV: Sign-off Check](command:tenxDebug.dv.signoff)", "media": { "markdown": "media/walkthrough/signoff.md" }, "completionEvents": ["onCommand:tenxDebug.dv.signoff", "onCommand:tenxDebug.dv.formalProve"] },
+          { "id": "quality", "title": "Measure testbench quality", "description": "Passing tests don't prove the testbench would catch a bug. Mutation testing plants small bugs in copies of the DUT and reports which ones the tests miss.\n[DV: Mutation Test](command:tenxDebug.dv.mutate)", "media": { "markdown": "media/walkthrough/quality.md" }, "completionEvents": ["onCommand:tenxDebug.dv.mutate"] }
+        ]
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        { "id": "tenxDebug", "title": "10xEngineers EDA", "icon": "media/activity.svg" }
+      ]
+    },
+    "views": {
+      "tenxDebug": [
+        { "id": "tenxDebug.fsmExplorer", "name": "FSM Explorer" },
+        { "id": "tenxDebug.waveFiles", "name": "Waveforms" },
+        { "id": "tenxDebug.coverageFiles", "name": "Coverage & Testplan" },
+        { "id": "tenxDebug.designHierarchy", "name": "Design Hierarchy" },
+        { "id": "tenxDebug.uvmHierarchy", "name": "UVM Verification Hierarchy" }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "tenxDebug.fsmExplorer",
+        "contents": "No FSMs found yet. Open a Verilog/SystemVerilog file containing a state machine (enum or localparam states + case statement).\n[Rescan Workspace](command:tenxDebug.refreshFsms)"
+      },
+      {
+        "view": "tenxDebug.waveFiles",
+        "contents": "No .vcd files found in this workspace. Dump one from your simulator with $dumpfile/$dumpvars.\n[Open a VCD file](command:tenxDebug.openWaveform)"
+      },
+      {
+        "view": "tenxDebug.coverageFiles",
+        "contents": "No coverage reports found (UCDB, vcover report, LCOV .info, Verilator coverage.dat).\n[Open Coverage Report](command:tenxDebug.openCoverage)\n[Generate UVM Environment](command:tenxDebug.newUvmAgent)\n[Run Questa Simulation](command:tenxDebug.runQuesta)\n[Configure Questa Path](command:tenxDebug.configureQuesta)"
+      }
+    ],
+    "configuration": {
+      "title": "10xEngineers EDA",
+      "properties": {
+        "tenxDebug.lint.tool": {
+          "type": "string",
+          "enum": ["auto", "slang", "verilator", "iverilog", "none"],
+          "default": "auto",
+          "description": "Linter / semantic checker for Verilog/SystemVerilog. 'auto' uses slang, then Verilator, then Icarus Verilog — whichever is on PATH. slang gives full semantic errors (undeclared names, unknown types/members/ports) using the project's files.f."
+        },
+        "tenxDebug.lint.slangPath": { "type": "string", "default": "slang", "description": "Path to the slang executable (https://github.com/MikePopoloski/slang)." },
+        "tenxDebug.uvmLint.enable": { "type": "boolean", "default": true, "description": "UVM lint rules with quick fixes (factory registration, constructors, super.build_phase, objections, unchecked randomize()/config_db get, new() vs create). Waive a finding with // 10x-waive <RULE>." },
+        "tenxDebug.inlayHints.enable": { "type": "boolean", "default": true, "description": "Show port / parameter names on positional connections." },
+        "tenxDebug.format.collapseBlankLines": { "type": "boolean", "default": false, "description": "Formatter: collapse runs of blank lines to one (indentation and trailing blanks are always fixed)." },
+        "tenxDebug.logs.links": { "type": "boolean", "default": true, "description": "Make file(line), file:line and uvm_test_top.* paths in logs, transcripts and terminals clickable." },
+        "tenxDebug.logs.maxFileSizeMB": { "type": "number", "default": 50, "description": "Skip link detection for larger logs." },
+        "tenxDebug.dv.simulator": { "type": "string", "enum": ["icarus", "questa", "vcs"], "default": "icarus", "description": "Default simulator for the DV flow (lightweight testbenches run on Icarus; UVM needs Questa or VCS)." },
+        "tenxDebug.toolchain.mode": { "type": "string", "enum": ["auto", "container", "local"], "enumDescriptions": ["Use locally installed open-source tools when present, the container image otherwise", "Always run Icarus / Verilator / GHDL / Yosys / SymbiYosys from the container image", "Never use the container"], "default": "auto", "description": "Where the open-source tools (Icarus, Verilator, GHDL, Yosys, SymbiYosys, cocotb) come from. Commercial simulators (Questa, VCS) always run locally." },
+        "tenxDebug.toolchain.image": { "type": "string", "default": "10xengineers/eda-tools:1", "description": "Container image with the open-source toolchain. Built locally from the extension's Dockerfile by \"Set Up Open-Source Toolchain\", or pulled from your registry (e.g. ghcr.io/<org>/eda-tools:1)." },
+        "tenxDebug.toolchain.engine": { "type": "string", "enum": ["auto", "docker", "wsl", "podman"], "enumDescriptions": ["Docker on PATH, then Docker inside WSL (Windows), then Podman", "docker CLI (Docker Desktop, Linux, macOS)", "Docker Engine inside WSL (Windows without Docker Desktop)", "Podman"], "default": "auto", "description": "Container engine for the open-source toolchain." },
+        "tenxDebug.toolchain.wslDistro": { "type": "string", "default": "", "description": "WSL distribution that runs Docker (empty = the default distribution)." },
+        "tenxDebug.toolchain.mounts": { "type": "array", "items": { "type": "string" }, "default": [], "description": "Extra host folders to mount into the toolchain container (workspace folders, the temp folder and ~/.dvflow are always mounted)." },
+        "tenxDebug.dv.icarusBin": { "type": "string", "default": "", "description": "Absolute folder containing iverilog/vvp (empty = PATH, C:\\iverilog\\bin, /usr/bin)." },
+        "tenxDebug.dv.vcsBin": { "type": "string", "default": "", "description": "Absolute folder containing vcs (empty = PATH / VCS_HOME)." },
+        "tenxDebug.dv.timeoutSeconds": { "type": "number", "default": 300, "description": "Wall-clock timeout per simulation; the partial log is kept and the run is classified TIMEOUT." },
+        "tenxDebug.dv.ai.enable": { "type": "boolean", "default": false, "description": "Opt-in AI assistance (draft scenarios, summarize failures). Off by default; every request asks before sending, and only the shown text is sent." },
+        "tenxDebug.regression.parallel": { "type": "number", "default": 2, "minimum": 1, "description": "Simulations run in parallel during a regression (needs one license per job)." },
+        "tenxDebug.wave.display.defaultTraceStyle": {
+          "type": "object",
+          "default": { "color": "", "fill": 0.2, "radix": "hex", "renderer": "bus", "strokeWidth": 1.5 },
+          "properties": {
+            "color": { "type": "string", "description": "Default trace color (#rrggbb). Empty = theme palette." },
+            "fill": { "type": "number", "minimum": 0, "maximum": 1, "description": "Fill opacity under traces (0 disables fill)." },
+            "radix": { "type": "string", "enum": ["bin", "oct", "hex", "unsigned", "signed", "ascii", "utf8", "float"], "description": "Default radix for multi-bit signals." },
+            "renderer": { "type": "string", "enum": ["line", "bus", "step", "linear"], "description": "line/bus = digital; step/linear = analog plot of the numeric value." },
+            "strokeWidth": { "type": "number", "minimum": 0.5, "multipleOf": 0.5, "description": "Trace line width in px (multiples of 0.5)." }
+          },
+          "markdownDescription": "Default style of new traces in the waveform viewer. Per-signal color, renderer, stroke and fill can be changed from the signal's right-click menu."
+        },
+        "tenxDebug.wave.display.disableGpu": { "type": "boolean", "default": false, "description": "Do not request GPU-accelerated canvas rendering (use if traces flicker on remote / VM displays)." },
+        "tenxDebug.wave.keyboard.addSignal": { "type": "string", "default": "a", "description": "Key that focuses the signal filter to add signals (e.g. 'a', 'ctrl+k')." },
+        "tenxDebug.wave.keyboard.reload": { "type": "string", "default": "r", "description": "Key that reloads the waveform from disk." },
+        "tenxDebug.wave.keyboard.zoomAmount": { "type": "number", "default": 2, "minimum": 1.01, "description": "Zoom factor per zoom-in / zoom-out key press." },
+        "tenxDebug.wave.keyboard.zoomStart": { "type": "string", "default": "Home", "description": "Key that jumps the view to the start of the simulation." },
+        "tenxDebug.wave.keyboard.zoomEnd": { "type": "string", "default": "End", "description": "Key that jumps the view to the end of the simulation." },
+        "tenxDebug.wave.keyboard.zoomFit": { "type": "string", "default": "f", "description": "Key that zooms to fit the whole simulation." },
+        "tenxDebug.wave.keyboard.zoomIn": { "type": "string", "default": "=", "description": "Key that zooms in." },
+        "tenxDebug.wave.keyboard.zoomOut": { "type": "string", "default": "-", "description": "Key that zooms out." },
+        "tenxDebug.wave.keyboard.zoomTarget": { "type": "string", "enum": ["center", "cursor"], "default": "cursor", "description": "Keyboard zoom keeps this point fixed (cursor falls back to center when off-screen)." },
+        "tenxDebug.wave.mouse.reverseScrolling": { "type": "boolean", "default": false, "description": "Reverse the direction of horizontal panning and Ctrl+wheel zoom." },
+        "tenxDebug.wave.mouse.zoomAmount": { "type": "number", "default": 1.25, "minimum": 1.01, "description": "Zoom factor per Ctrl+wheel step." },
+        "tenxDebug.wave.mouse.zoomTarget": { "type": "string", "enum": ["mouse", "center", "cursor"], "default": "mouse", "description": "Ctrl+wheel zoom keeps this point fixed." },
+        "tenxDebug.wave.theme.palette": { "type": "array", "items": { "type": "string" }, "default": ["#22c55e", "#38bdf8", "#f472b6", "#facc15", "#a78bfa", "#fb923c", "#2dd4bf", "#f87171"], "description": "Trace color palette (first = 1-bit default, second = bus default; all are offered in the signal color menu)." },
+        "tenxDebug.wave.theme.minContrast": { "type": "number", "default": 3, "minimum": 0, "maximum": 21, "description": "Contrast floor for trace colours against the editor background (WCAG ratio; 3 = WCAG non-text minimum, 4.5 = text). Colours below it are lightened/darkened automatically, so light and high-contrast themes stay readable. 0 disables." },
+        "tenxDebug.wave.crossProbe.followWaveformSelection": { "type": "boolean", "default": false, "description": "When on, selecting a signal in a waveform tab reveals its declaration in the RTL (without taking focus). Ambiguous names (declared in several modules that the scope cannot disambiguate) are not followed. Off by default: right-click a signal → Go to declaration in RTL instead." },
+        "tenxDebug.wave.maxFileMB": { "type": "number", "default": 256, "minimum": 1, "description": "Largest VCD the viewer loads (MiB). Files are read in 4 MiB chunks; larger dumps get an explanatory error instead of exhausting memory." },
+        "tenxDebug.wave.inlineValues": { "type": "boolean", "default": true, "description": "Show the value of each declared signal at the waveform cursor inline in open Verilog/SystemVerilog/VHDL editors." },
+        "tenxDebug.wave.logTimeUnit": { "type": "string", "enum": ["fs", "ps", "ns", "us", "ms", "s"], "default": "ns", "description": "Unit assumed for log timestamps without a unit (e.g. UVM '@ 120:')." },
+        "tenxDebug.wave.converters": { "type": "object", "default": {}, "markdownDescription": "Commands that convert non-VCD dumps to VCD. `{in}`/`{out}` are replaced. Defaults: `fst: fst2vcd -f \"{in}\" -o \"{out}\"`, `lxt2`/`lxt: lxt2vcd \"{in}\" -o \"{out}\"` (GTKWave tools). GHW has no default — set e.g. `\"ghw\": \"mytool {in} {out}\"` or dump VCD/FST from GHDL." },
+        "tenxDebug.lint.waiversFile": { "type": "string", "default": ".tenx-waivers.json", "description": "Workspace-relative lint waiver file (JSON: rule, file glob, match text or line, reason, owner, expires). Inline alternative: // tenx-lint-waive RULE: reason." },
+        "tenxDebug.netlist.yosysPath": { "type": "string", "default": "yosys", "description": "yosys executable used by 'Schematic: Synthesize with Yosys and Show'." },
+        "tenxDebug.lint.onSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run the linter when a Verilog/SystemVerilog file is saved."
+        },
+        "tenxDebug.lint.verilatorPath": { "type": "string", "default": "verilator", "description": "Path to the verilator executable." },
+        "tenxDebug.lint.iverilogPath": { "type": "string", "default": "iverilog", "description": "Path to the iverilog executable." },
+        "tenxDebug.lint.extraArgs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Extra arguments passed to the linter (e.g. include dirs: -Irtl/include)."
+        },
+        "tenxDebug.fsm.codeLens": { "type": "boolean", "default": true, "description": "Show an 'FSM' CodeLens above detected state machines." },
+        "tenxDebug.fsm.diagnostics": { "type": "boolean", "default": true, "description": "Report FSM issues (unreachable / unhandled / dead-end states, duplicate encodings)." },
+        "tenxDebug.questa.path": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Questa / ModelSim **bin** folder (or install root). Examples: `C:\\questasim64_2024.1\\win64`, `C:\\intelFPGA\\23.1std\\questa_fse\\win64`, `/opt/questasim/linux_x86_64`, `~/intelFPGA_lite/23.1std/questa_fse/bin`. Leave empty to auto-detect (PATH, `QUESTA_HOME`, common install folders)."
+        },
+        "tenxDebug.questa.reportArgs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": ["-details"],
+          "markdownDescription": "Arguments passed to `vcover report` when opening a `.ucdb` (output file and UCDB are appended)."
+        },
+        "tenxDebug.coverage.goal": { "type": "number", "default": 90, "minimum": 1, "maximum": 100, "description": "Coverage goal (%) used for status colours and analysis." },
+        "tenxDebug.coverage.openAfterRun": { "type": "boolean", "default": true, "description": "Open the coverage dashboard automatically after a Questa batch run." }
+      }
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "10xEngineers EDA regression",
+  "type": "object",
+  "properties": {
+    "name": { "type": "string" },
+    "simulator": { "enum": ["questa"], "default": "questa" },
+    "output": { "type": "string", "default": "regression_runs", "description": "Output root; every run gets <output>/<timestamp>/<job>/<test>/seed_<n>/" },
+    "parallel": { "type": "integer", "minimum": 1, "description": "Simulations run in parallel" },
+    "seeds": { "description": "Default seeds per test: a count or an explicit list", "oneOf": [{ "type": "integer", "minimum": 1 }, { "type": "array", "items": { "type": "integer" } }] },
+    "testplan": { "type": "string", "description": "Testplan evaluated against the merged coverage" },
+    "jobs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "dir", "tests"],
+        "properties": {
+          "name": { "type": "string" },
+          "dir": { "type": "string", "description": "Testbench folder containing run.do and files.f" },
+          "seeds": { "oneOf": [{ "type": "integer", "minimum": 1 }, { "type": "array", "items": { "type": "integer" } }] },
+          "tests": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                { "type": "string" },
+                { "type": "object", "required": ["name"], "properties": { "name": { "type": "string" }, "seeds": { "oneOf": [{ "type": "integer" }, { "type": "array", "items": { "type": "integer" } }] } } }
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "required": ["jobs"]
+}

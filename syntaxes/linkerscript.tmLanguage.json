@@ -1,0 +1,23 @@
+{
+  "name": "Linker Script (10xEngineers EDA)",
+  "scopeName": "source.ld.tenx",
+  "patterns": [
+    { "name": "comment.block.ld", "begin": "/\\*", "end": "\\*/" },
+    { "name": "comment.line.double-slash.ld", "match": "//.*$" },
+    { "name": "string.quoted.double.ld", "begin": "\"", "end": "\"" },
+    {
+      "name": "keyword.control.ld",
+      "match": "\\b(SECTIONS|MEMORY|PHDRS|VERSION|ENTRY|INCLUDE|INPUT|GROUP|AS_NEEDED|OUTPUT|OUTPUT_FORMAT|OUTPUT_ARCH|TARGET|SEARCH_DIR|STARTUP|INSERT|AFTER|BEFORE|NOCROSSREFS|REGION_ALIAS|ASSERT|EXTERN|FORCE_COMMON_ALLOCATION|INHIBIT_COMMON_ALLOCATION|NOLOAD|DSECT|COPY|INFO|OVERLAY|ONLY_IF_RO|ONLY_IF_RW)\\b"
+    },
+    {
+      "name": "support.function.ld",
+      "match": "\\b(ALIGN|ALIGNOF|ADDR|LOADADDR|SIZEOF|SIZEOF_HEADERS|ORIGIN|LENGTH|DEFINED|ABSOLUTE|MAX|MIN|NEXT|BLOCK|CONSTANT|DATA_SEGMENT_ALIGN|DATA_SEGMENT_END|DATA_SEGMENT_RELRO_END|SEGMENT_START|LOG2CEIL|KEEP|SORT|SORT_BY_NAME|SORT_BY_ALIGNMENT|SORT_BY_INIT_PRIORITY|SORT_NONE|EXCLUDE_FILE|PROVIDE|PROVIDE_HIDDEN|HIDDEN|FILL|AT|SUBALIGN|CREATE_OBJECT_SYMBOLS|CONSTRUCTORS|COMMON|BYTE|SHORT|LONG|QUAD|SQUAD)\\b"
+    },
+    { "name": "entity.name.section.ld", "match": "(?<![\\w])\\.[A-Za-z_][\\w.]*" },
+    { "name": "variable.language.location-counter.ld", "match": "(?<![\\w.])\\.(?![\\w.])" },
+    { "name": "constant.numeric.ld", "match": "\\b(0[xX][0-9a-fA-F]+|\\d+)[KMG]?\\b" },
+    { "name": "storage.modifier.attributes.ld", "match": "\\(\\s*[rwxaliRWXALI!]+\\s*\\)" },
+    { "name": "keyword.operator.ld", "match": ">|=|\\+=|-=|\\*=|/=|<<=|>>=|&=|\\|=|\\?|:|\\+|-|\\*|/|&|\\|" },
+    { "name": "entity.name.function.symbol.ld", "match": "\\b[A-Za-z_][\\w]*(?=\\s*=)" }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "10xEngineers EDA testplan",
+  "description": "Maps specification features to coverage items (covergroups, coverpoints, bins, assertions, cover directives, tests). Loaded by the 10xEngineers EDA coverage dashboard.",
+  "type": "object",
+  "properties": {
+    "name": { "type": "string", "description": "Testplan / block name" },
+    "description": { "type": "string" },
+    "spec": { "type": "string", "description": "Source specification document" },
+    "goal": { "type": "number", "minimum": 0, "maximum": 100, "default": 100, "description": "Default coverage goal (%) for every feature" },
+    "features": {
+      "type": "array",
+      "description": "Features / testpoints extracted from the specification",
+      "items": {
+        "type": "object",
+        "required": ["id", "name"],
+        "properties": {
+          "id": { "type": "string", "description": "Unique feature id, e.g. ALU-ADD-01" },
+          "name": { "type": "string", "description": "Short feature title" },
+          "description": { "type": "string", "description": "What the specification requires" },
+          "spec_ref": { "type": "string", "description": "Section of the specification" },
+          "priority": { "enum": ["high", "medium", "low", "critical"] },
+          "owner": { "type": "string" },
+          "goal": { "type": "number", "minimum": 0, "maximum": 100 },
+          "coverage": {
+            "type": "array",
+            "description": "Coverage items: covergroup, covergroup::coverpoint, covergroup::coverpoint::bin ('*' wildcards allowed), cover:<directive>, code:<metric>",
+            "items": { "type": "string" }
+          },
+          "assertions": { "type": "array", "description": "SVA assertion names that must pass non-vacuously", "items": { "type": "string" } },
+          "tests": { "type": "array", "description": "Tests that must pass in the regression", "items": { "type": "string" } },
+          "stimulus": { "type": "string", "description": "How the feature is exercised (sequence / test)" }
+        }
+      }
+    }
+  },
+  "required": ["features"]
+}

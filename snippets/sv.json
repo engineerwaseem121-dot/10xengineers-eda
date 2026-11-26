@@ -1,0 +1,154 @@
+{
+  "always_ff": {
+    "prefix": "always_ff",
+    "body": [
+      "always_ff @(posedge ${1:clk} or negedge ${2:rst_n}) begin",
+      "  if (!$2) begin",
+      "    ${3:q} <= '0;",
+      "  end else begin",
+      "    $3 <= ${4:d};",
+      "  end",
+      "end"
+    ]
+  },
+  "always_comb": {
+    "prefix": "always_comb",
+    "body": ["always_comb begin", "  $0", "end"]
+  },
+  "FSM (SystemVerilog enum, two-process)": {
+    "prefix": "fsm",
+    "description": "SystemVerilog enum state machine (detected by the 10xEngineers EDA FSM viewer)",
+    "body": [
+      "typedef enum logic [${1:1}:0] {",
+      "  ${2:IDLE},",
+      "  ${3:BUSY},",
+      "  ${4:DONE}",
+      "} ${5:state_t};",
+      "",
+      "$5 state, next_state;",
+      "",
+      "always_ff @(posedge ${6:clk} or negedge ${7:rst_n}) begin",
+      "  if (!$7) state <= $2;",
+      "  else     state <= next_state;",
+      "end",
+      "",
+      "always_comb begin",
+      "  next_state = state;",
+      "  unique case (state)",
+      "    $2: if (${8:start})  next_state = $3;",
+      "    $3: if (${9:finish}) next_state = $4;",
+      "    $4: next_state = $2;",
+      "    default: next_state = $2;",
+      "  endcase",
+      "end",
+      "$0"
+    ]
+  },
+  "FSM (three-process with registered outputs)": {
+    "prefix": "fsm3",
+    "body": [
+      "typedef enum logic [1:0] {${1:S_IDLE}, ${2:S_A}, ${3:S_B}} ${4:state_t};",
+      "$4 state_q, state_d;",
+      "",
+      "// 1) state register",
+      "always_ff @(posedge clk or negedge rst_n)",
+      "  if (!rst_n) state_q <= $1;",
+      "  else        state_q <= state_d;",
+      "",
+      "// 2) next-state logic",
+      "always_comb begin",
+      "  state_d = state_q;",
+      "  case (state_q)",
+      "    $1: if (${5:go})   state_d = $2;",
+      "    $2: if (${6:next}) state_d = $3;",
+      "    $3:                state_d = $1;",
+      "    default:           state_d = $1;",
+      "  endcase",
+      "end",
+      "",
+      "// 3) outputs",
+      "always_ff @(posedge clk or negedge rst_n)",
+      "  if (!rst_n) ${7:busy} <= 1'b0;",
+      "  else        $7 <= (state_d != $1);",
+      "$0"
+    ]
+  },
+  "typedef enum": {
+    "prefix": "enum",
+    "body": ["typedef enum logic [${1:1}:0] {", "  ${2:A},", "  ${3:B}", "} ${4:name_t};"]
+  },
+  "typedef struct packed": {
+    "prefix": "struct",
+    "body": ["typedef struct packed {", "  logic [${1:7}:0] ${2:field};", "  $0", "} ${3:name_t};"]
+  },
+  "interface": {
+    "prefix": "interface",
+    "body": [
+      "interface ${1:bus_if} (input logic clk, input logic rst_n);",
+      "  logic        valid;",
+      "  logic        ready;",
+      "  logic [31:0] data;",
+      "",
+      "  modport master (output valid, data, input ready);",
+      "  modport slave  (input valid, data, output ready);",
+      "endinterface"
+    ]
+  },
+  "package": {
+    "prefix": "package",
+    "body": ["package ${1:${TM_FILENAME_BASE}};", "  $0", "endpackage"]
+  },
+  "class": {
+    "prefix": "class",
+    "body": [
+      "class ${1:name};",
+      "  function new();",
+      "    $0",
+      "  endfunction",
+      "endclass"
+    ]
+  },
+  "assert property": {
+    "prefix": "assertp",
+    "description": "Concurrent assertion",
+    "body": [
+      "${1:a_name}: assert property (@(posedge ${2:clk}) disable iff (!${3:rst_n})",
+      "  ${4:req} |-> ##[${5:1}:${6:4}] ${7:ack})",
+      "  else \\$error(\"$1 failed\");"
+    ]
+  },
+  "cover property": {
+    "prefix": "coverp",
+    "body": ["${1:c_name}: cover property (@(posedge ${2:clk}) ${3:expr});"]
+  },
+  "FSM transition assertion": {
+    "prefix": "assertfsm",
+    "description": "Assert that a state is only entered from a legal predecessor",
+    "body": [
+      "${1:a_fsm_legal}: assert property (@(posedge ${2:clk}) disable iff (!${3:rst_n})",
+      "  (${4:state} == ${5:TO_STATE}) && \\$changed($4) |-> \\$past($4) inside {${6:FROM_STATE}})",
+      "  else \\$error(\"illegal transition into $5 from %s\", \\$past($4).name());"
+    ]
+  },
+  "covergroup": {
+    "prefix": "covergroup",
+    "body": [
+      "covergroup ${1:cg} @(posedge ${2:clk});",
+      "  option.per_instance = 1;",
+      "  ${3:cp_state}: coverpoint ${4:state};",
+      "  ${5:cp_trans}: coverpoint $4 {",
+      "    bins ${6:t0} = (${7:IDLE} => ${8:BUSY});",
+      "  }",
+      "endgroup",
+      "$1 ${1}_inst = new();"
+    ]
+  },
+  "foreach": {
+    "prefix": "foreach",
+    "body": ["foreach (${1:arr}[${2:i}]) begin", "  $0", "end"]
+  },
+  "fork join": {
+    "prefix": "fork",
+    "body": ["fork", "  $1", "join${2|,_any,_none|}"]
+  }
+}
