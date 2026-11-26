@@ -63,6 +63,47 @@ my_block/
 
 ---
 
+## Walkthrough: one design, seven steps
+
+A mod-10 counter on QuestaSim, from RTL to a verified block. Each picture is a frame from the demo video, with the step on the left and what to look at highlighted.
+
+### 1 · Open your RTL and select the DUT
+`Ctrl+Shift+P` → **DV: Select DUT**. Pick the file and the top module; ports, clock and reset are read from the RTL.
+
+![Open your RTL and select the DUT](images/walkthrough/1-select-dut.jpg)
+
+### 2 · Generate the testbenches
+**DV: Generate Testbench** → SV, UVM, or both. `dvflow.json` holds the expected behaviour (here: count 0..9, then wrap).
+
+![Generate the testbenches](images/walkthrough/2-generate.jpg)
+
+### 3 · Review the test plan
+`testplan/testplan.xlsx` opens inside VS Code: requirements, scenarios, coverage bins, checkers and tests.
+
+![Review the test plan](images/walkthrough/3-testplan-excel.jpg)
+
+### 4 · Run the regression
+**DV: Run Regression** → suite *full*, functional + code coverage, seeds 1–3. Every test × seed runs in its own folder; results stream into the Output panel.
+
+![Run the regression](images/walkthrough/4-regression.jpg)
+
+### 5 · Review the dashboard
+Pass rate, functional coverage, scenarios, checks and run time on one page. Click any run for its log and waveform.
+
+![Review the dashboard](images/walkthrough/5-dashboard.jpg)
+
+### 6 · Close coverage
+Which test hit which bin. Bins no test reached (coverage holes) are listed, so you know which test to write next.
+
+![Close coverage](images/walkthrough/6-coverage.jpg)
+
+### 7 · Test plan updated
+After every run `testplan.xlsx` shows PASS / FAIL and COVERED for every scenario, and every run with its checks.
+
+![Test plan updated](images/walkthrough/7-testplan-updated.jpg)
+
+---
+
 ### Why design-verification engineers switch
 
 | You used to… | With 10xEngineers EDA |
