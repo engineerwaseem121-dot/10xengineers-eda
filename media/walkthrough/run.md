@@ -10,7 +10,7 @@
 | Questa | ✓ | ✓ | ✓ including covergroups |
 | VCS | ✓ | ✓ | ✓ |
 
-Turn on **code coverage** to get a list of DUT lines and conditions that no test exercised. Every run also updates `testplan.yaml` and `testplan.xlsx` with its results.
+Turn on **code coverage** to get a list of DUT lines and conditions that no test exercised. Every run also updates `testplan.yaml` and `testplan.xlsx` with its results. **DV: View Test Plan (Excel) in VS Code** shows the workbook in a tab (sheets, search, sort, coloured status), with no Excel needed.
 
 ## In pictures
 

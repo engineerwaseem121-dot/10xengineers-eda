@@ -441,6 +441,8 @@ function activate(context) {
   sub(fsmDiag); sub(lintDiag);
   waveApi = require('./src/wavetools').register(context, { cfg });
   require('./src/wavedrom').register(context, { nonce, csp, revealLine });
+  // Excel viewer: test plans and coverage workbooks open in a VS Code tab
+  require('./src/xlsxview').register(context, { nonce, csp });
   require('./src/netlist').register(context, { nonce, csp, revealLine });
   sub(vscode.window.registerCustomEditorProvider('tenxDebug.waveform', new WaveEditorProvider(fsmIndex), {
     webviewOptions: { retainContextWhenHidden: true }, supportsMultipleEditorsPerDocument: true

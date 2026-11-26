@@ -192,7 +192,7 @@ function register(context) {
       // plan unchanged: still make sure the Excel copy exists
       let made = null;
       if (!fs.existsSync(path.join(root, 'testplan.xlsx'))) { try { made = require('./planxlsx').writePlan(root); } catch (e) { out.appendLine('[generate] testplan.xlsx not written: ' + e.message); } }
-      vscode.window.showInformationMessage(made ? `Everything is up to date. Created the Excel test plan: ${path.basename(made)}` : 'Everything is up to date.', ...(made ? ['Open in Excel'] : [])).then(x => { if (x) vscode.env.openExternal(vscode.Uri.file(made)); });
+      vscode.window.showInformationMessage(made ? `Everything is up to date. Created the Excel test plan: ${path.basename(made)}` : 'Everything is up to date.', ...(made ? ['View in VS Code', 'Open in Excel'] : [])).then(x => { if (x === 'View in VS Code') vscode.commands.executeCommand('vscode.openWith', vscode.Uri.file(made), 'tenxDebug.xlsxViewer'); else if (x) vscode.env.openExternal(vscode.Uri.file(made)); });
       return;
     }
     const replacing = files.filter(f => f.exists && !f.engine);
@@ -206,7 +206,8 @@ function register(context) {
     out.appendLine(`[generate] ${files.length} file(s) written in ${root}: ${files.map(f => f.path).filter(p => !p.startsWith('.dvflow')).join(', ')}`);
     if (files.xlsx) out.appendLine(`[generate] Excel test plan: ${files.xlsx}`);
     if (files.xlsxError) out.appendLine(`[generate] testplan.xlsx not written: ${files.xlsxError}`);
-    vscode.window.showInformationMessage(`${onlyPlan ? 'Test plan' : 'Testbench'} generated (${files.length} file(s))${files.xlsx ? ' + ' + path.basename(files.xlsx) : ''}.`, 'Open test plan', ...(files.xlsx ? ['Open in Excel'] : []), 'Run Regression').then(x => {
+    vscode.window.showInformationMessage(`${onlyPlan ? 'Test plan' : 'Testbench'} generated (${files.length} file(s))${files.xlsx ? ' + ' + path.basename(files.xlsx) : ''}.`, 'Open test plan', ...(files.xlsx ? ['View Excel plan', 'Open in Excel'] : []), 'Run Regression').then(x => {
+      if (x === 'View Excel plan') vscode.commands.executeCommand('vscode.openWith', vscode.Uri.file(files.xlsx), 'tenxDebug.xlsxViewer');
       if (x === 'Open test plan') vscode.window.showTextDocument(vscode.Uri.file(path.join(root, 'testplan.yaml')));
       if (x === 'Open in Excel') vscode.env.openExternal(vscode.Uri.file(files.xlsx));
       if (x === 'Run Regression') runRegression();
@@ -803,7 +804,8 @@ const b = document.createElement('button'); b.textContent = 'Open in browser'; b
     const res = loadResults(root);
     if (!res) { vscode.window.showWarningMessage('Run a test first: the Excel test plan includes the latest results.'); return; }
     const f = require('./planxlsx').write(root, res);
-    const a = await vscode.window.showInformationMessage(`Test plan exported: ${f}`, 'Open in Excel', 'Reveal');
+    const a = await vscode.window.showInformationMessage(`Test plan exported: ${f}`, 'View in VS Code', 'Open in Excel', 'Reveal');
+    if (a === 'View in VS Code') vscode.commands.executeCommand('vscode.openWith', vscode.Uri.file(f), 'tenxDebug.xlsxViewer');
     if (a === 'Open in Excel') vscode.env.openExternal(vscode.Uri.file(f));
     if (a === 'Reveal') vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(f));
   });

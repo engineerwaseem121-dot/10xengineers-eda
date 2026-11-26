@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.0
+- **Excel viewer in VS Code.** `testplan.xlsx`, coverage workbooks and any other `.xlsx` open in a read-only tab. No Excel or separate viewer extension needed.
+  - Sheet tabs with row counts, search (`/`), sort by any column, a sticky header and coloured status cells (PASS / FAIL / HOLE / NOT RUN …).
+  - Paths of files and run folders are clickable. Summary sheets show as key/value lists.
+  - **Copy** puts the visible rows on the clipboard as tab-separated text. **Open in Excel** and **Reveal** are also there.
+  - The tab follows the file when a regression rewrites it.
+  - Open it with **DV: View Test Plan (Excel) in VS Code**, **Excel: View in VS Code**, the right-click menu on `.xlsx`, or **View Excel plan** after generating a test plan.
+  - Registered as an optional editor, so it never takes `.xlsx` away from the app you use by default.
+- Dependency-free `.xlsx` reader: zip + SpreadsheetML, with shared and inline strings, numbers, booleans and cached formula results.
+
 ## 0.13.0
 - **FIFO template.** Synchronous FIFOs are now verified out of the box instead of falling back to "custom".
   - Detected from the module name (`fifo`, `queue`) or its ports (full/empty, wr_en/rd_en).

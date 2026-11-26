@@ -40,7 +40,6 @@ A Verilog/SystemVerilog/UVM engineer usually installs a separate extension for e
 - Bluespec.
 - Synopsys `.hvp` verification plans.
 - Cadence Xcelium NCDB coverage.
-- Viewing Excel files.
 - Opening `.fst` files directly. We convert them through GTKWave's `fst2vcd`.
 - Full-elaboration IDEs such as Sigasi or DVT for very large designs.
 
@@ -465,6 +464,17 @@ Run **10xEngineers EDA: Open Coverage Report**. It accepts:
 - **Export Excel**: the full workbook (Summary, Verification Plan, Regression, Hit bins, Unhit bins, Plan items, Coverpoints, All bins, Instances, Assertions, Cover directives)
 
 Status cells are coloured, headers are frozen and every sheet has filters.
+
+**View the workbooks without Excel.** Any `.xlsx` (the test plan, coverage exports, your own) opens in a VS Code tab: run **DV: View Test Plan (Excel) in VS Code**, click **View Excel plan** after generating, or right-click an `.xlsx` → **Excel: View in VS Code**. You get:
+- one tab per sheet
+- search (`/`)
+- sorting by any column
+- coloured PASS / FAIL / HOLE / NOT RUN cells
+- clickable file and run-folder paths
+- **Copy** (pastes into Excel or Google Sheets)
+- **Open in Excel**
+
+The tab refreshes by itself when a regression rewrites the file. It is read-only, and the extension never changes which app opens `.xlsx` by default.
 
 **In the editor**: click **Highlight coverage in editor**. Lines that never executed are shaded red, covered lines get a green bar, and hovering shows hit counts. File coverage also appears in VS Code's **Testing** panel.
 

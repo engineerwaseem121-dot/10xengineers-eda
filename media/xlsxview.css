@@ -1,0 +1,47 @@
+:root {
+  --bg: var(--vscode-editor-background, #1e1e1e); --fg: var(--vscode-editor-foreground, #d4d4d4);
+  --muted: var(--vscode-descriptionForeground, #9d9d9d); --line: var(--vscode-panel-border, #333);
+  --head: var(--vscode-editorWidget-background, #252526); --hover: var(--vscode-list-hoverBackground, #2a2d2e);
+  --link: var(--vscode-textLink-foreground, #3794ff); --focus: var(--vscode-focusBorder, #007fd4);
+  --ok: #22c55e; --bad: #f87171; --warn: #f59e0b;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font: 13px/1.45 var(--vscode-font-family, 'Segoe UI', sans-serif); overflow: hidden; }
+body { display: flex; flex-direction: column; }
+header { display: flex; align-items: center; gap: 8px; padding: 7px 12px; border-bottom: 1px solid var(--line); flex: none; }
+.brand { font-weight: 700; background: linear-gradient(90deg, #38bdf8, #a78bfa); -webkit-background-clip: text; background-clip: text; color: transparent; }
+#file { color: var(--muted); font-family: var(--vscode-editor-font-family, monospace); }
+.grow { flex: 1; }
+input[type=search] { width: 260px; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--vscode-input-border, #3c3c3c); background: var(--vscode-input-background, #3c3c3c); color: var(--vscode-input-foreground, #ccc); }
+#count { color: var(--muted); font-size: 12px; min-width: 70px; }
+button { padding: 4px 11px; border-radius: 4px; border: 1px solid var(--line); background: var(--head); color: var(--fg); cursor: pointer; }
+button:hover { border-color: var(--focus); }
+button.primary { background: var(--vscode-button-background, #0e639c); color: var(--vscode-button-foreground, #fff); border-color: transparent; }
+nav { display: flex; gap: 2px; padding: 0 10px; border-bottom: 1px solid var(--line); flex: none; overflow-x: auto; }
+nav button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; color: var(--muted); padding: 8px 12px; white-space: nowrap; }
+nav button.on { color: var(--fg); border-bottom-color: var(--link); }
+nav .n { margin-left: 6px; font-size: 11px; padding: 0 6px; border-radius: 8px; background: var(--head); color: var(--muted); }
+main { flex: 1; overflow: auto; }
+.title { padding: 12px 14px 2px; }
+.title h1 { margin: 0; font-size: 17px; }
+.title p { margin: 2px 0 0; color: var(--muted); }
+table { border-collapse: separate; border-spacing: 0; margin: 10px 14px 18px; font-size: 12.5px; }
+th, td { border-bottom: 1px solid var(--line); padding: 5px 10px; text-align: left; vertical-align: top; max-width: 640px; }
+th { position: sticky; top: 0; background: var(--head); z-index: 1; font-weight: 600; cursor: pointer; user-select: none; white-space: nowrap; border-bottom: 2px solid var(--line); }
+th .s { color: var(--muted); font-size: 10px; margin-left: 4px; }
+tr:hover td { background: var(--hover); }
+td.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--vscode-editor-font-family, monospace); }
+td.mono.id { white-space: nowrap; }
+td.mono { font-family: var(--vscode-editor-font-family, monospace); font-size: 12px; }
+td.wrap { white-space: pre-wrap; word-break: break-word; }
+td.rn { color: var(--muted); text-align: right; font-size: 11px; user-select: none; }
+.pill { display: inline-block; padding: 0 8px; border-radius: 10px; font-size: 11.5px; font-weight: 600; border: 1px solid currentColor; white-space: nowrap; }
+.ok { color: var(--ok); } .bad { color: var(--bad); } .warn { color: var(--warn); }
+a.path { color: var(--link); cursor: pointer; text-decoration: none; word-break: break-all; }
+a.path:hover { text-decoration: underline; }
+mark { background: rgba(250, 204, 21, .35); color: inherit; border-radius: 2px; }
+.kv { margin: 12px 14px; border-collapse: collapse; }
+.kv td { border-bottom: 1px solid var(--line); }
+.kv td:first-child { color: var(--muted); white-space: nowrap; width: 1%; padding-right: 18px; }
+.empty { padding: 30px; color: var(--muted); }
+.note { margin: 0 14px 12px; color: var(--warn); }

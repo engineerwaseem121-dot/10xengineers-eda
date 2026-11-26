@@ -204,5 +204,23 @@ t('FIFO rd_data is checked only after an accepted read', () => assert.strictEqua
 t('typographic quotes found with line numbers (comments ignored)', () => { const s = TB.smartChars('a\nrd <= ’0;\n// fine ’ in a comment\n'); assert.strictEqual(s.length, 1); assert.strictEqual(s[0].line, 2); });
 t('typographic quotes fixed', () => assert.strictEqual(TB.fixSmartChars('1’b0 “x”'), '1\'b0 "x"'));
 
+console.log('Excel viewer reader');
+const XR = R('src/xlsxread.js'), XW = R('src/xlsx.js');
+t('round trip: write a workbook, read it back', () => {
+  const buf = XW.build([{ name: 'Scenarios', title: 'Plan', columns: [{ header: 'ID' }, { header: 'Hits', type: 'num' }, { header: 'Status' }], rows: [['SC-1', 5, 'PASS'], ['SC-2', 0, 'HOLE & <x>']], statusCol: 2 }]);
+  const w = XR.readXlsx(buf);
+  assert.strictEqual(w.sheets[0].name, 'Scenarios');
+  const rows = w.sheets[0].rows.filter(r => r.length);
+  assert.deepStrictEqual(rows[0], ['Plan']);
+  assert.deepStrictEqual(rows[1], ['ID', 'Hits', 'Status']);
+  assert.deepStrictEqual(rows[2], ['SC-1', 5, 'PASS']);
+  assert.deepStrictEqual(rows[3], ['SC-2', 0, 'HOLE & <x>']);
+});
+t('path links only for files that exist', () => {
+  const data = { sheets: [{ rows: [['C:\\exists.txt', 'C:\\missing.txt', 'not a path']] }] };
+  assert.deepStrictEqual(XR.pathLinks(data, p => p === 'C:\\exists.txt'), { '0:0:0': 1 });
+});
+t('non-zip input gives a clear error', () => assert.throws(() => XR.readXlsx(Buffer.from('hello world, not a zip file at all')), /not a zip/));
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

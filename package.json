@@ -2,7 +2,7 @@
   "name": "10xengineer-eda",
   "displayName": "10xEngineers EDA: Verilog, SystemVerilog & UVM Verification Suite",
   "description": "All-in-one Verilog, SystemVerilog and UVM design-verification suite. Generates SV, UVM and cocotb testbenches from your RTL and runs regressions on Icarus, Verilator (UVM included, no license), Questa or VCS, with the open-source tools in Docker. Adds a waveform viewer with protocol decoders and X-trace, coverage and test plans, formal, synthesis, gate-level sim and sign-off. One extension instead of ten.",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "publisher": "WaseemAbbas",
   "repository": { "type": "git", "url": "https://github.com/engineerwaseem121-dot/10xengineers-eda.git" },
   "bugs": { "url": "https://github.com/engineerwaseem121-dot/10xengineers-eda/issues" },
@@ -122,6 +122,12 @@
     ],
     "customEditors": [
       {
+        "viewType": "tenxDebug.xlsxViewer",
+        "displayName": "10xEngineers Excel Viewer",
+        "selector": [{ "filenamePattern": "*.xlsx" }, { "filenamePattern": "*.xlsm" }],
+        "priority": "option"
+      },
+      {
         "viewType": "tenxDebug.waveform",
         "displayName": "10xEngineers EDA Waveform Viewer",
         "selector": [{ "filenamePattern": "*.vcd" }, { "filenamePattern": "*.fst" }, { "filenamePattern": "*.ghw" }, { "filenamePattern": "*.lxt" }, { "filenamePattern": "*.lxt2" }],
@@ -173,6 +179,8 @@
       { "command": "tenxDebug.copyMcpConfig", "title": "Copy MCP Server Config (for AI agents)", "category": "10xEngineers EDA" },
       { "command": "tenxDebug.dv.selectDut", "title": "DV: Select DUT", "category": "10xEngineers EDA", "icon": "$(target)" },
       { "command": "tenxDebug.dv.generateTestPlan", "title": "DV: Generate Test Plan", "category": "10xEngineers EDA" },
+      { "command": "tenxDebug.dv.viewTestPlan", "title": "DV: View Test Plan (Excel) in VS Code", "category": "10xEngineers EDA", "icon": "$(table)" },
+      { "command": "tenxDebug.xlsx.view", "title": "Excel: View in VS Code", "category": "10xEngineers EDA", "icon": "$(table)" },
       { "command": "tenxDebug.dv.fixQuotes", "title": "DV: Fix Typographic Quotes in DUT", "category": "10xEngineers EDA" },
       { "command": "tenxDebug.dv.generateTestbench", "title": "DV: Generate Testbench", "category": "10xEngineers EDA", "icon": "$(wand)" },
       { "command": "tenxDebug.dv.runTest", "title": "DV: Run Test", "category": "10xEngineers EDA", "icon": "$(play)" },
@@ -240,6 +248,7 @@
         }
       ],
       "explorer/context": [
+        { "command": "tenxDebug.xlsx.view", "when": "resourceExtname == .xlsx || resourceExtname == .xlsm", "group": "navigation@9" },
         { "command": "tenxDebug.openWaveform", "when": "resourceExtname =~ /^\\.(vcd|fst|ghw|lxt2?)$/", "group": "navigation" },
         { "command": "tenxDebug.wave.diff", "when": "resourceExtname =~ /^\\.(vcd|fst|ghw|lxt2?)$/", "group": "navigation" },
         { "command": "tenxDebug.wavedrom.preview", "when": "resourceExtname == .wavedrom || resourceExtname == .wdjson", "group": "navigation" },
