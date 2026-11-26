@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.12.4
+- README: the coverage dashboard, holes, analysis, testplan and waveform/FSM pictures are re-taken from the current build, with numbered labels. The old sidebar picture is replaced by the UVM architecture diagram. The example VCD header carries the current product name.
+- CI: one small job (syntax check, unit tests, Icarus end-to-end with the Excel test plan, `.vsix` package). Tags `v*` publish a GitHub Release.
+
 ## 0.12.3
 - **Demo in pictures.** 11 labelled screenshots in `images/demo/`, taken from a complete run on one design (`reg_32_bit.sv`). Each has numbered labels with an explanation bar. They appear in the README (*See it working*) and in the Welcome walkthrough steps (demo, dashboard, run, UVM, sign-off, quality).
 - Fix: the run panel showed raw Markdown links (`[sim.log](sim.log)`) in the triage notes.

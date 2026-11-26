@@ -1,5 +1,5 @@
 $date 2026-11-25 $end
-$version 10xEngineer WaveDebug example generator $end
+$version 10xEngineers EDA example generator $end
 $timescale 1ns $end
 $scope module tb $end
 $var reg 1 ! clk $end

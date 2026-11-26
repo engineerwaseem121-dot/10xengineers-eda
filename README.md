@@ -443,7 +443,7 @@ Run **10xEngineers EDA: Open Coverage Report**. It accepts:
 - **Verilator** `coverage.dat`
 - JSON
 
-![Coverage overview](images/coverage-overview.png)
+![Coverage overview with numbered labels](images/coverage-overview.png)
 
 | Tab | What you get |
 |---|---|
@@ -457,7 +457,7 @@ Run **10xEngineers EDA: Open Coverage Report**. It accepts:
 | **Assertions** | Failed, passed and vacuous assertions; cover directives |
 | **Analysis** | What to do next, plus generated constraints that target the holes |
 
-![Unhit bins sheet](images/coverage-holes.png)
+![Unhit bins, ranked by priority](images/coverage-holes.png)
 
 **Excel export** produces real `.xlsx` files. There are three buttons:
 - **Excel: Hit**: only hit bins and hit testplan items
@@ -468,7 +468,7 @@ Status cells are coloured, headers are frozen and every sheet has filters.
 
 **In the editor**: click **Highlight coverage in editor**. Lines that never executed are shaded red, covered lines get a green bar, and hovering shows hit counts. File coverage also appears in VS Code's **Testing** panel.
 
-![Analysis with constraint suggestions](images/coverage-analysis.png)
+![Analysis with generated constraints](images/coverage-analysis.png)
 
 ## 3. Testplan: spec → features → hit / remaining
 1. **Extract the features.** Right-click a `.md` or `.txt` specification and choose **Extract Testplan from Spec**. Every *shall / must / should* sentence becomes a feature. The command writes `<spec>.testplan` (YAML) and `<spec>_testplan.xlsx`.
@@ -485,7 +485,7 @@ Status cells are coloured, headers are frozen and every sheet has filters.
    `.testplan` files get **autocomplete and validation** from the bundled schema (install *YAML by Red Hat*). A CSV vplan with the columns `ID, Feature, Description, Priority, Owner, Coverage Items, Goal` also works.
 3. **Load it.** Use **Testplan…** in the dashboard, or put it next to the report and it loads automatically. Each feature shows **Covered / Partial / Not covered / Unmapped**, with the hit and remaining items. The sidebar shows the same.
 
-![Testplan status](images/testplan.png)
+![Testplan status per feature](images/testplan.png)
 
 ## 4. Regression (each test in its own directory)
 Describe the regression in `regression.json`. It is schema-validated, so you get autocomplete.
@@ -534,7 +534,7 @@ Supporting commands:
 | **Run Questa Simulation** | Pick the test and batch or GUI mode. Afterwards the dashboard and waves open |
 
 ## 6. UVM-aware SystemVerilog
-![Sidebar views](images/sidebar-views.png)
+![UVM architecture diagram with numbered labels](images/demo/09-uvm-architecture.png)
 - **UVM Verification Hierarchy** view:
   - each test's **component topology**, worked out from `type_id::create` calls, with **factory overrides applied** (overridden components are marked)
   - ports and their `connect()` calls
