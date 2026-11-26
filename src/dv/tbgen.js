@@ -338,7 +338,7 @@ SEED   ?= 1
 SEEDS  ?=
 SUITE  ?= full
 CONFIG ?= default
-WAVES  ?= 0
+WAVES  ?= fail
 COV    ?= 0
 RUN    ?= latest
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.16.1
+- **Every run updates the test plan.** UVM and cocotb runs (DV: Run Test → UVM / cocotb) now write the results block of `testplan.yaml` and refresh `testplan.xlsx`, like the SV regressions. Before, they updated only the dashboard.
+- **Waveforms for failures, automatically.** The new default waveform mode is *only if the test fails*. Passing runs stay fast with no dump. A failing run is repeated once with the same seed and the waveform on, so `waves.vcd` is in the run folder, in the failure folder and in the dashboard. This applies to single runs, regressions and UVM.
+  - **DV: Run Test** asks: *Only if the test fails* (recommended), *Always* or *Never*. Command line: `--waves fail|1|0`; `make WAVES=fail|1|0`.
+  - Generated UVM `tb_top` dumps only with `+WAVES`. Regenerate the UVM testbench to get it; older ones still dump on every run.
+
 ## 0.16.0
 - **Docker works on the first run for new users.** Install Docker, install the extension, press Run.
   - The pinned tools image (`ghcr.io/engineerwaseem121-dot/eda-tools:1.0.0`) downloads by itself the first time a tool is needed, with progress in the Output panel. Cancel stops it. Two VS Code windows share one download.

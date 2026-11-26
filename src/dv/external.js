@@ -68,6 +68,14 @@ function publish(root, cfg, o) {
   fs.writeFileSync(path.join(runDir, 'results.json'), text);
   fs.writeFileSync(path.join(runDir, 'junit.xml'), runner.junit(result));
   const report = require('./report').write(root, JSON.parse(text));
+  // the test plan follows every run, UVM and cocotb included: testplan.yaml results block + testplan.xlsx
+  if (!o.quiet) {
+    try {
+      const tp = path.join(root, 'testplan.yaml');
+      if (fs.existsSync(tp)) fs.writeFileSync(tp, require('./testplan').updateResults(fs.readFileSync(tp, 'utf8'), JSON.parse(text), path.relative(root, runDir).split(path.sep).join('/')));
+      result.testplanXlsx = require('./planxlsx').write(root, JSON.parse(text));
+    } catch (e) { result.testplanError = e.message; }
+  }
   return { result, report };
 }
 

@@ -598,9 +598,12 @@ ${all.map(p => `    ${decl(p).replace(/^logic/, 'wire')} ${p.name} = ${n}_vif.${
   end
 §endif
 
+  // waveform on request (+WAVES): the extension adds it for failing tests (or for every test when asked)
   initial begin
-    $dumpfile("waves.vcd");      // open with 10xEngineers EDA waveform viewer
-    $dumpvars(0, tb_top);
+    if ($test$plusargs("WAVES")) begin
+      $dumpfile("waves.vcd");    // open with 10xEngineers EDA waveform viewer
+      $dumpvars(0, tb_top);
+    end
   end
 
   initial begin

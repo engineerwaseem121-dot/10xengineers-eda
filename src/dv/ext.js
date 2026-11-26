@@ -401,7 +401,7 @@ function register(context) {
     const seeds = sd.seeds;
     const conf = cfg.configs.length > 1 ? await vscode.window.showQuickPick(cfg.configs.map(c => ({ label: c.name, description: JSON.stringify(c.params) })), { placeHolder: 'DUT configuration' }) : { label: cfg.configs[0].name };
     if (!conf) return;
-    const w = await vscode.window.showQuickPick([{ label: 'No waveform', v: 0 }, { label: 'Dump waveform (waves.vcd)', v: 1 }], { placeHolder: 'Waveform' }); if (!w) return;
+    const w = await vscode.window.showQuickPick([{ label: 'Only if the test fails', description: 'recommended: fast passing runs; a failing run is repeated with the same seed and waves.vcd', v: 'fail' }, { label: 'Always', description: 'waves.vcd for every run', v: 1 }, { label: 'Never', v: 0 }], { placeHolder: 'Waveform (waves.vcd)' }); if (!w) return;
     const covOn = await pickCoverage(simId, false); if (covOn == null) return;
     out.appendLine(`> terminal equivalent: ${sim.IS_WIN ? '.\\dvflow.cmd' : './dvflow.sh'} run --sim ${simId} --test ${test} ${seedArg(sd)} --config ${conf.label} --waves ${w.v} --cov ${covOn}`);
     return execute(root, { sim: simId, tests: [test], seeds, configs: [conf.label], waves: w.v, cov: covOn, suite: 'single' }, `DV: ${test} on ${simId} × ${seeds.length} run(s)`);

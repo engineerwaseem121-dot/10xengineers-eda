@@ -141,6 +141,7 @@ async function run(root, cfg, o) {
   }
   log('[build] ok');
 
+  const wavesMode = runner.wavesModeOf(o.waves, cfg.options.waves);   // all | fail (default: rerun failing tests with +WAVES) | none
   for (const t of tests) for (const seed of seeds) {
     if (o.token && o.token.isCancellationRequested) { results.push({ test: t, seed, status: 'INCOMPLETE', why: 'cancelled' }); continue; }
     const rd = path.join(runBase, t, String(seed));
@@ -148,12 +149,20 @@ async function run(root, cfg, o) {
     const st = steps(simId, det.tools, { uvmDir, runDir: buildDir, test: t, seed, cov, container: det.container }).run;
     if (det.container) st.container = true;
     st.cwd = rd;                                   // waves.vcd, transcript and cov.ucdb land in the test folder
+    if (wavesMode === 'all') st.args.push('+WAVES');
     const lf = path.join(rd, 'sim.log');
     const r = await runner.runProc(st, lf, timeoutMs, o.token, env, simId);
     const v = verdict(fs.existsSync(lf) ? fs.readFileSync(lf, 'utf8') : '', r.code, r.killedBy);
     const ucdb = path.join(rd, 'cov.ucdb');
+    let wavesOnFailure = false;
+    if (wavesMode === 'fail' && v.status === 'FAIL' && !(o.token && o.token.isCancellationRequested)) {
+      // same build, same seed, waveform on: the failure is reproduced with a waves.vcd for debugging
+      const ws = Object.assign({}, st, { args: [...st.args, '+WAVES'] });
+      await runner.runProc(ws, path.join(rd, 'sim_waves.log'), timeoutMs, o.token, env, simId);
+      wavesOnFailure = fs.existsSync(path.join(rd, 'waves.vcd'));
+    }
     results.push({ test: t, seed, status: v.status, why: v.why, log: lf, ms: r.ms, ucdb: fs.existsSync(ucdb) ? ucdb : null });
-    log(`[${v.status.padEnd(10)}] ${t} seed=${seed} (${((r.ms || 0) / 1000).toFixed(2)}s) ${v.status === 'PASS' ? '' : '— ' + v.why}`);
+    log(`[${v.status.padEnd(10)}] ${t} seed=${seed} (${((r.ms || 0) / 1000).toFixed(2)}s) ${v.status === 'PASS' ? '' : '— ' + v.why}${wavesOnFailure ? '  [waves.vcd written for this failure]' : ''}`);
   }
   let coverage = null;
   if (cov) {
@@ -188,6 +197,9 @@ function finish(root, runBase, runId, simId, det, results, log, coverage, ctx) {
         build: { failed: ctx.failed, errors: [], commands: ctx.commands, log: path.relative(runBase, ctx.buildLog).replace(/\\/g, '/') } });
       res.report = pub.report;
       log(`   dashboard:       ${pub.report}`);
+      log(`   test plan:       ${path.join(root, 'testplan.yaml')}`);
+      if (pub.result.testplanXlsx) log(`   test plan Excel: ${pub.result.testplanXlsx}`);
+      else if (pub.result.testplanError) log(`   # testplan.xlsx not written: ${pub.result.testplanError}`);
     } catch (e) { log('# dashboard not written: ' + e.message); }
   }
   log(`== UVM: ${pass}/${results.length} passed · results: ${path.join(runBase, 'uvm_results.json')}`);

@@ -1,4 +1,13 @@
 'use strict';
+/** --waves value -> 'all' | 'fail' | 'none'.  default 'fail' (dvflow.json options.waves: true = all, "fail" or false = fail, "none" = none) */
+function wavesModeOf(v, cfgDefault) {
+  const s = String(v == null ? '' : v).toLowerCase();
+  if (/^(fail|failed|failing|on-?fail(ure)?)$/.test(s)) return 'fail';
+  if (s !== '') return /^(1|true|yes|all|always|on)$/.test(s) ? 'all' : 'none';
+  if (cfgDefault === true) return 'all';
+  if (String(cfgDefault).toLowerCase() === 'none') return 'none';
+  return 'fail';
+}
 /* DV flow engine: generate, build, run, regress, rerun, triage, results, JUnit/JSON, testplan update. */
 const fs = require('fs');
 const path = require('path');
@@ -270,7 +279,7 @@ function triage(ctx) {
   else if (cls.kind === 'tool') hyp.push(['The simulator license or installation is unavailable on this machine.', 'Run "make capabilities" / Show Simulator Capabilities; check the license environment variables.']);
   else hyp.push(['The simulation ended without a result line.', 'Check the end of sim.log for a crash or $finish from DUT code.']);
   hyp.forEach(([h, e], i) => L.push(`${i + 1}. **Hypothesis:** ${h}  \n   *Evidence that would confirm it:* ${e}`));
-  L.push('', '## Reproduce', '', 'From the project root:', '', '```', ctx.rerunCli, '```', '', 'Raw simulator commands: see `command.txt`. Waveforms: ' + (r.waves ? '`waves.vcd` in this folder.' : 'rerun with `--waves 1` (or `rerun.cmd` / `rerun.sh`, which enable waves).'), '');
+  L.push('', '## Reproduce', '', 'From the project root:', '', '```', ctx.rerunCli, '```', '', 'Raw simulator commands: see `command.txt`. Waveforms: ' + (r.waves ? '`waves.vcd` in this folder' + (r.wavesOnFailure ? ' (the failing test was re-run once with waves, same seed).' : '.') : 'rerun with `--waves 1` (or `rerun.cmd` / `rerun.sh`, which enable waves).'), '');
   L.push('## Artifacts', '', '- [sim.log](sim.log)' + (fs.existsSync(path.join(failDir, 'build.log')) ? '\n- [build.log](build.log)' : '') + '\n- [command.txt](command.txt)\n- [config.json](config.json)\n- [rerun.cmd](rerun.cmd) / [rerun.sh](rerun.sh)', '');
   return L.join('\n');
 }
@@ -311,7 +320,9 @@ async function regress(root, o) {
   const suiteTests = (o.jobs && o.jobs.length ? [...new Set(o.jobs.map(j => j.test))] : o.tests && o.tests.length ? o.tests : (cfg.suites[o.suite || 'full'] || cfg.tests)).map(alias);
   const seeds = (o.jobs && o.jobs.length ? [...new Set(o.jobs.map(j => Number(j.seed)))] : o.seeds && o.seeds.length ? o.seeds : cfg.seeds).map(Number);
   const configs = (o.configs && o.configs.length ? cfg.configs.filter(c => o.configs.includes(c.name)) : cfg.configs);
-  const waves = o.waves != null ? !!Number(o.waves) : cfg.options.waves;
+  // waveforms: 'all' (every run), 'fail' (only failing runs: rerun once with +WAVES, same seed; the default), 'none'
+  const wavesMode = wavesModeOf(o.waves, cfg.options.waves);
+  const waves = wavesMode === 'all';
   const caps = det.caps || adapter.caps('');
   const yes = f => /^yes/.test(String(caps[f] || ''));
   const mode = covMode(o.cov, cfg.options.code_coverage ? 'both' : 'functional');
@@ -329,11 +340,11 @@ async function regress(root, o) {
   const meta = {
     runId, started: new Date().toISOString(), root, dut: cfg.dut.top, template: cfg.template, language: vhdl ? 'vhdl' : 'sv',
     simulator: simId, simRequested: simId, simLabel: adapter.label, simVersion: det.version || '', simAvailable: det.available, simReason: det.reason || '', simSource: det.source || '',
-    rev, suite: o.suite || (o.tests ? 'custom' : 'full'), tests: suiteTests, seeds, configs: configs.map(c => c.name), waves,
+    rev, suite: o.suite || (o.tests ? 'custom' : 'full'), tests: suiteTests, seeds, configs: configs.map(c => c.name), waves, wavesMode,
     coverage: { code: cov, functional: (mode === 'both' || mode === 'functional') && cfg.options.functional_coverage !== false, mode, assertions }, capabilities: caps, unsupported,
     scenarioFilter: o.scenario || null, host: require('os').hostname(),
     ...(o.kind ? { kind: o.kind, testbench: o.kind === 'gls' ? 'Gate-level simulation (Yosys netlist)' : o.kind } : {}),
-    request: { sim: simId, suite: o.suite || null, tests: suiteTests, seeds, configs: configs.map(c => c.name), waves, cov: covReq, scenario: o.scenario || null, jobs: o.jobs || null }
+    request: { sim: simId, suite: o.suite || null, tests: suiteTests, seeds, configs: configs.map(c => c.name), waves: wavesMode === 'fail' ? 'fail' : waves ? 1 : 0, cov: covReq, scenario: o.scenario || null, jobs: o.jobs || null }
   };
   fs.writeFileSync(path.join(runDir, 'config.json'), JSON.stringify(cfg, null, 2));
   const runs = [];
@@ -425,8 +436,16 @@ async function regress(root, o) {
     if (vhdl && r.parsed.result == null && r.code === 0 && !r.parsed.asserts.length && /DVFLOW_RESULT/.test(read(path.join(rdir, 'sim.log'))) === false) r.parsed.noResultLine = true;
     r.status = statusOf(r, null);
     r.stage = r.status === 'PASS' ? null : r.status === 'LICENSE' ? 'license' : r.procError && /ENOENT/.test(r.procError) ? 'installation' : 'test';
+    if (wavesMode === 'fail' && r.status === 'FAIL' && !(token && token.isCancellationRequested)) {
+      // same build, same seed, waveform on: the failure is reproduced with a waves.vcd for debugging
+      const wcmd = adapter.run({ root, container: !!det.container, buildDir: b.dir, runDir: rdir, plusargs: [...plusargs, '+WAVES'], t: det.tools, cov: false, test: j.test, waves: true, vhdl, vhdlStd: cfg.vhdl_std || '08', stopTime: cfg.options.stop_time });
+      if (det.container) wcmd.container = true;
+      await runProc(wcmd, path.join(rdir, 'sim_waves.log'), (o.timeoutS || 300) * 1000, token, env, simId);
+      r.waves = fs.existsSync(path.join(rdir, 'waves.vcd'));
+      if (r.waves) r.wavesOnFailure = true;
+    }
     if (fs.existsSync(path.join(rdir, 'cov.ucdb'))) r.ucdb = rel(runDir, path.join(rdir, 'cov.ucdb'));
-    log(`[${r.status.padEnd(10)}] ${j.config}/${j.test} seed=${j.seed} (${r.time}s)${r.parsed.mismatches[0] ? `  first mismatch: ${r.parsed.mismatches[0].signal} exp=${r.parsed.mismatches[0].expected} act=${r.parsed.mismatches[0].actual} @${r.parsed.mismatches[0].time}ns` : ''}${r.parsed.missing[0] ? `  missing ${r.parsed.missing[0].missing} transaction(s)` : ''}${r.status === 'LICENSE' ? '  ' + (r.parsed.licenseLines || [])[0] : ''}`);
+    log(`[${r.status.padEnd(10)}] ${j.config}/${j.test} seed=${j.seed} (${r.time}s)${r.wavesOnFailure ? '  [waves.vcd written for this failure]' : ''}${r.parsed.mismatches[0] ? `  first mismatch: ${r.parsed.mismatches[0].signal} exp=${r.parsed.mismatches[0].expected} act=${r.parsed.mismatches[0].actual} @${r.parsed.mismatches[0].time}ns` : ''}${r.parsed.missing[0] ? `  missing ${r.parsed.missing[0].missing} transaction(s)` : ''}${r.status === 'LICENSE' ? '  ' + (r.parsed.licenseLines || [])[0] : ''}`);
     runs.push(r);
   }
   // failure folders
@@ -696,4 +715,4 @@ function clean(root) {
   for (const d of ['runs']) { const p = path.join(root, d); if (fs.existsSync(p)) fs.rmSync(p, { recursive: true, force: true }); }
 }
 
-module.exports = { covMode, functionalRow, covergroupRow, codeRow, loadConfig, plannedFiles, writeFiles, regress, rerun, retry, clean, nextAction, scrubDir, parseSimLog, classify, statusOf, junit, nowId, runProc, assemble };
+module.exports = { wavesModeOf, covMode, functionalRow, covergroupRow, codeRow, loadConfig, plannedFiles, writeFiles, regress, rerun, retry, clean, nextAction, scrubDir, parseSimLog, classify, statusOf, junit, nowId, runProc, assemble };

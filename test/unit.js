@@ -357,5 +357,12 @@ if (process.platform === 'win32') t('paths with spaces map to one container path
   assert.strictEqual(CT.mapArg('+incdir+C:\\a b\\inc'), '+incdir+/mnt/c/a b/inc');
 });
 
+console.log('Waveform modes');
+t('waves: default is "only failing runs"; 1 = all; 0 = none', () => {
+  const W = R('src/dv/runner.js').wavesModeOf;
+  assert.strictEqual(W(undefined, false), 'fail'); assert.strictEqual(W(undefined, undefined), 'fail'); assert.strictEqual(W(undefined, true), 'all');
+  assert.strictEqual(W('1'), 'all'); assert.strictEqual(W(1), 'all'); assert.strictEqual(W('0'), 'none'); assert.strictEqual(W(0), 'none'); assert.strictEqual(W('fail'), 'fail');
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
