@@ -102,6 +102,8 @@ function parseVcd(text) {
     d.v.push(val);
   }
 
+  varCount -= regroupBits(root, ids, data);
+
   const meta = {
     timescale,
     tree: root,
@@ -113,4 +115,62 @@ function parseVcd(text) {
   return { meta, data };
 }
 
-module.exports = { parseVcd };
+/**
+ * Some simulators (Questa for nets driven through an interface, some gate-level dumps) write a bus as separate
+ * 1-bit signals "wr_data[7]" … "wr_data[0]". Put them back together as one bus "wr_data[7:0]", like GTKWave does.
+ * Only contiguous runs of 2+ bits with no real bus of the same name in the scope are merged.
+ * returns how many signals were removed from the listing (merged bits minus the new buses)
+ */
+function regroupBits(rootScope, ids, data) {
+  let removed = 0, seq = 0;
+  const walk = sc => {
+    const groups = new Map();
+    const names = new Set(sc.vars.map(v => v.name.replace(/\s*\[.*$/, '')));
+    for (const v of sc.vars) {
+      const m = /^(.+?)\s*\[(\d+)\]$/.exec(v.name);
+      if (!m || v.width !== 1) continue;
+      if (!groups.has(m[1])) groups.set(m[1], []);
+      groups.get(m[1]).push({ v, i: +m[2] });
+    }
+    for (const [base, bits] of groups) {
+      if (bits.length < 2) continue;
+      // a real bus/scalar of the same name already exists (e.g. "q" and "q[0]") -> leave alone
+      if (sc.vars.some(v => v.name.replace(/\s*\[.*$/, '') === base && !/^\s*\[\d+\]$/.test(v.name.slice(base.length)))) continue;
+      bits.sort((a, b) => b.i - a.i);
+      const msb = bits[0].i, lsb = bits[bits.length - 1].i;
+      if (new Set(bits.map(b => b.i)).size !== bits.length || msb - lsb + 1 !== bits.length) continue;   // gaps / duplicates
+      const ds = bits.map(b => data[b.v.id]).filter(Boolean);
+      if (ds.length !== bits.length) continue;
+      // merge the change lists: one sample per time any bit changes
+      const times = [...new Set([].concat(...ds.map(d => d.t)))].sort((a, b) => a - b);
+      const ptr = ds.map(() => -1);
+      const t = [], val = [];
+      for (const tm of times) {
+        let s = '';
+        for (let k = 0; k < ds.length; k++) {
+          const d = ds[k];
+          while (ptr[k] + 1 < d.t.length && d.t[ptr[k] + 1] <= tm) ptr[k]++;
+          s += ptr[k] < 0 ? 'x' : d.v[ptr[k]];
+        }
+        if (val.length && val[val.length - 1] === s) continue;
+        t.push(tm); val.push(s);
+      }
+      const id = `#bus${seq++}:${base}`;
+      ids[id] = { width: bits.length, type: bits[0].v.type };
+      data[id] = { t, v: val };
+      const first = sc.vars.indexOf(bits[0].v) >= 0 ? Math.min(...bits.map(b => sc.vars.indexOf(b.v))) : sc.vars.length;
+      const scopePath = bits[0].v.path.slice(0, bits[0].v.path.length - bits[0].v.name.length).replace(/\.$/, '');
+      const bus = { name: `${base}[${msb}:${lsb}]`, id, width: bits.length, type: bits[0].v.type, path: (scopePath ? scopePath + '.' : '') + `${base}[${msb}:${lsb}]`, bits: bits.map(b => b.v.id) };
+      const drop = new Set(bits.map(b => b.v));
+      sc.vars = sc.vars.filter(v => !drop.has(v));
+      sc.vars.splice(Math.min(first, sc.vars.length), 0, bus);
+      removed += bits.length - 1;
+      void names;
+    }
+    sc.scopes.forEach(walk);
+  };
+  walk(rootScope);
+  return removed;
+}
+
+module.exports = { parseVcd, regroupBits };

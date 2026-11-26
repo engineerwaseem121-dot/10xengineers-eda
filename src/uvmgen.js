@@ -585,7 +585,17 @@ ${dutName ? `  ${dutName}${params.length ? ' #(\n' + params.map(p => `    .${p.n
 ${f.assertions && dutName ? `  // SVA checks on the DUT boundary (works for combinational DUTs without a clock too)
   ${n}_assertions u_${n}_assertions (.${clk}(${clk}), .${rst}(${rst})${all.map(p => `, .${p.name}(${n}_vif.${p.name})`).join('')});
 
-` : ''}  initial begin
+` : ''}  // The interface's signals as plain wires, so they appear in waves.vcd on every simulator
+  // (Questa, VCS and Xcelium do not write SystemVerilog interface contents to a VCD; Verilator does).
+§ifndef VERILATOR
+  if (1) begin : ${n}_if_signals
+    wire ${clk} = ${n}_vif.${clk};
+    wire ${rst} = ${n}_vif.${rst};
+${all.map(p => `    ${decl(p).replace(/^logic/, 'wire')} ${p.name} = ${n}_vif.${p.name};`).join('\n')}
+  end
+§endif
+
+  initial begin
     $dumpfile("waves.vcd");      // open with 10xEngineers EDA waveform viewer
     $dumpvars(0, tb_top);
   end

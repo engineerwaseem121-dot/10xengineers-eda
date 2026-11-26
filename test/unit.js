@@ -271,6 +271,39 @@ t('both: functional (covergroup bins), covergroups and code all reported', () =>
 t('functional only: covergroups reported, code not requested', () => { const r = rows('functional'); assert.deepStrictEqual([r.f.state, r.g.state, r.c.state], ['reported', 'reported', 'disabled']); assert.match(r.c.note, /functional only/); });
 t('code only: code reported, functional not requested', () => { const r = rows('code'); assert.deepStrictEqual([r.f.state, r.g.state, r.c.state], ['disabled', 'disabled', 'reported']); });
 
+console.log('Waveform: split buses regrouped');
+t('Questa-style bit-blasted bus is shown as one bus', () => {
+  const vcd = `$timescale 1ns $end
+$scope module tb_top $end
+$scope module u_dut $end
+$var wire 1 a wr_data [1] $end
+$var wire 1 b wr_data [0] $end
+$var wire 2 c rd_data [1:0] $end
+$var wire 1 d q $end
+$var wire 1 e q [0] $end
+$upscope $end
+$upscope $end
+$enddefinitions $end
+#0
+0a
+1b
+b10 c
+0d
+0e
+#10
+1a
+#20
+0b
+`;
+  const p = parseVcd(vcd);
+  const names = listVars(p.meta).map(v => v.name);
+  assert.ok(names.includes('wr_data[1:0]') && !names.includes('wr_data[1]'), names.join(','));
+  assert.ok(names.includes('rd_data[1:0]'));
+  assert.ok(names.includes('q[0]'), 'a real scalar of the same name keeps its bit');
+  const bus = listVars(p.meta).find(v => v.name === 'wr_data[1:0]');
+  assert.deepStrictEqual(p.data[bus.id], { t: [0, 10, 20], v: ['01', '11', '10'] });
+});
+
 console.log('Excel viewer reader');
 const XR = R('src/xlsxread.js'), XW = R('src/xlsx.js');
 t('round trip: write a workbook, read it back', () => {

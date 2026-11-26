@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.15.2
+- **UVM waveforms show the interface signals on every simulator.** Questa, VCS and Xcelium do not write SystemVerilog interface contents to a VCD file. The generated `tb_top` now mirrors every interface signal into plain wires under `tb_top.<name>_if_signals`, so they appear in `waves.vcd`. Verilator already dumped the interface, so the mirror is skipped there. Regenerate the UVM testbench (**DV: Generate Testbench → UVM**) to get it.
+- **Split buses are regrouped in the waveform viewer.** When a dump writes a bus as separate bits (`wr_data[7]` … `wr_data[0]`, as Questa does for nets driven through an interface), the viewer shows one bus `wr_data[7:0]` with hex values, as it already did for `rd_data`. Only contiguous bits with no real bus of the same name are merged.
+
 ## 0.15.1
 - **UVM on Questa: functional coverage now shows in the dashboard.** Newer Questa versions print the Covergroups row with `na` in the Hits and Misses columns. That row was skipped, so the dashboard showed only code coverage while the UCDB / HTML report had the covergroups. Fixes:
   - Covergroups are read from that row, from the `TYPE …` lines of the detailed report, and from the Covergroup Bins row.
