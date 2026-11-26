@@ -311,7 +311,8 @@ async function regress(root, o) {
   const waves = o.waves != null ? !!Number(o.waves) : cfg.options.waves;
   const caps = det.caps || adapter.caps('');
   const yes = f => /^yes/.test(String(caps[f] || ''));
-  const covReq = o.cov != null ? !!Number(o.cov) : cfg.options.code_coverage;
+  const mode = covMode(o.cov, cfg.options.code_coverage ? 'both' : 'functional');
+  const covReq = mode === 'both' || mode === 'code';
   const cov = covReq && yes('code_coverage');
   const assertions = cfg.options.assertions && yes('assertions');
   // requested features the selected simulator cannot provide: say so, name an alternative, keep running without them
@@ -326,7 +327,7 @@ async function regress(root, o) {
     runId, started: new Date().toISOString(), root, dut: cfg.dut.top, template: cfg.template, language: vhdl ? 'vhdl' : 'sv',
     simulator: simId, simRequested: simId, simLabel: adapter.label, simVersion: det.version || '', simAvailable: det.available, simReason: det.reason || '', simSource: det.source || '',
     rev, suite: o.suite || (o.tests ? 'custom' : 'full'), tests: suiteTests, seeds, configs: configs.map(c => c.name), waves,
-    coverage: { code: cov, functional: cfg.options.functional_coverage, assertions }, capabilities: caps, unsupported,
+    coverage: { code: cov, functional: (mode === 'both' || mode === 'functional') && cfg.options.functional_coverage !== false, mode, assertions }, capabilities: caps, unsupported,
     scenarioFilter: o.scenario || null, host: require('os').hostname(),
     ...(o.kind ? { kind: o.kind, testbench: o.kind === 'gls' ? 'Gate-level simulation (Yosys netlist)' : o.kind } : {}),
     request: { sim: simId, suite: o.suite || null, tests: suiteTests, seeds, configs: configs.map(c => c.name), waves, cov: covReq, scenario: o.scenario || null, jobs: o.jobs || null }
@@ -513,21 +514,47 @@ async function regress(root, o) {
   return result;
 }
 
+/**
+ * Coverage request -> mode. 'both' | 'code' | 'functional' | 'none'.
+ * Accepts the old numeric form too: 1 = both, 0 = functional (testbench bins / covergroups only).
+ */
+function covMode(v, fallback) {
+  if (v == null || v === '') return fallback || 'functional';
+  const s = String(v).trim().toLowerCase();
+  if (['1', 'true', 'both', 'all', 'yes', 'on', 'code+functional', 'functional+code'].includes(s)) return 'both';
+  if (['code', 'code-only'].includes(s)) return 'code';
+  if (['none', 'off', 'no'].includes(s)) return 'none';
+  return 'functional';   // '0', 'functional', 'fun', ...
+}
+
 /* ------------------------------------------------------------------ result assembly (coverage, plan, comparison) */
 function codeRow(meta, caps) {
   const base = { type: 'Code: line/branch/condition/toggle/FSM', pct: null };
   if (caps.code_coverage !== 'yes') return Object.assign(base, { state: 'unsupported', note: `${meta.simLabel} has no code-coverage engine` });
-  if (!meta.coverage.code) return Object.assign(base, { state: 'disabled', note: 'enable code coverage (Run Test / Run Regression → coverage, or --cov 1)' });
+  if (!meta.coverage.code) return Object.assign(base, { state: 'disabled', note: meta.coverage.mode === 'functional' ? 'not requested (coverage: functional only)' : 'enable code coverage (Run Test / Run Regression → coverage, or --cov both)' });
   const c = meta.codeCov;
   if (!c) return Object.assign(base, { state: 'unavailable', note: 'coverage was enabled but not post-processed for this simulator; see the UCDB of each run' });
   if (c.state !== 'reported') return Object.assign(base, { state: c.state === 'license' ? 'blocked' : 'unavailable', note: c.message });
   return Object.assign(base, { state: 'reported', pct: c.code.pct, hit: c.code.metrics.reduce((s, x) => s + x.hits, 0), total: c.code.metrics.reduce((s, x) => s + x.bins, 0), metrics: c.code.metrics, note: `merged over ${c.runs} run(s) · ${c.scope}`, files: c.files, uncovered: c.uncovered || null });
 }
+function functionalRow(meta, exec, countable, bins, fpct) {
+  const base = { type: 'Functional (testbench bins)' };
+  if (meta.coverage && meta.coverage.functional === false) return Object.assign(base, { state: 'disabled', pct: null, note: `not requested (coverage: ${meta.coverage.mode || 'code'} only)` });
+  // UVM / covergroup flows: the functional numbers are the covergroup bins from the UCDB
+  const c = meta.codeCov;
+  if (!exec.length && c && c.state === 'reported' && c.covergroups && c.covergroups.pct != null) {
+    const b = c.covergroups.bins;
+    return Object.assign(base, { type: 'Functional (covergroup bins)', state: 'reported', pct: b && b.total ? Math.round(b.hit * 10000 / b.total) / 100 : c.covergroups.pct, hit: b ? b.hit : null, total: b ? b.total : null, note: `from the UCDB: ${c.covergroups.groups.length || 'all'} covergroup type(s), merged over ${c.runs} run(s)` });
+  }
+  return Object.assign(base, { state: exec.length ? 'reported' : 'unavailable', pct: fpct, hit: countable.filter(x => x.state === 'hit').length, total: countable.length, note: `${bins.filter(x => x.state === 'waived').length} waived (excluded)` });
+}
 function covergroupRow(meta, caps) {
   const base = { type: 'Simulator covergroups', pct: null };
   if (caps.simulator_covergroups !== 'yes') return Object.assign(base, { state: 'unsupported', note: `${meta.simLabel} does not support SV covergroups` });
+  if (meta.coverage && meta.coverage.functional === false) return Object.assign(base, { state: 'disabled', note: 'not requested (coverage: code only)' });
   const c = meta.codeCov;
-  if (!c || c.state !== 'reported' || c.covergroups.pct == null) return Object.assign(base, { state: 'not collected in this flow', note: 'the simple testbench samples its own bins (row above); run the UVM testbench for adder4_cg covergroup coverage' });
+  const uvm = meta.kind === 'uvm';
+  if (!c || c.state !== 'reported' || c.covergroups.pct == null) return Object.assign(base, { state: uvm ? 'unavailable' : 'not collected in this flow', note: uvm ? (c && c.state !== 'reported' ? c.message : 'no covergroup data in the merged UCDB (was coverage enabled for this run?)') : 'the simple testbench samples its own bins (row above); run the UVM testbench on Questa / VCS for covergroup coverage' });
   return Object.assign(base, { state: 'reported', pct: c.covergroups.pct, metrics: c.covergroups.metrics, groups: c.covergroups.groups, note: `${c.covergroups.groups.length} covergroup type(s)`, files: c.files });
 }
 
@@ -566,7 +593,7 @@ function assemble(root, cfg, meta, runs, builds, model) {
   // simulator coverage (code coverage): only where the adapter supports it and data exists
   const caps = meta.capabilities;
   const types = [
-    { type: 'Functional (testbench bins)', state: exec.length ? 'reported' : 'unavailable', pct: fpct, hit: countable.filter(b => b.state === 'hit').length, total: countable.length, note: `${bins.filter(b => b.state === 'waived').length} waived (excluded)` },
+    functionalRow(meta, exec, countable, bins, fpct),
     covergroupRow(meta, caps),
     codeRow(meta, caps),
     { type: 'Assertions (concurrent SVA)', state: caps.assertions === 'unsupported' ? 'unsupported' : (meta.coverage.assertions ? 'reported' : 'disabled'), pct: null, note: caps.assertions === 'unsupported' ? 'checked only on Questa/VCS' : '' }
@@ -614,7 +641,7 @@ function assemble(root, cfg, meta, runs, builds, model) {
   }
   const totals = { runs: runs.length, pass: runs.filter(r => r.status === 'PASS').length, fail: runs.filter(r => r.status === 'FAIL').length, timeout: runs.filter(r => r.status === 'TIMEOUT').length, error: runs.filter(r => r.status === 'ERROR').length, incomplete: runs.filter(r => r.status === 'INCOMPLETE').length, blocked: runs.filter(r => r.status === 'BLOCKED').length, license: runs.filter(r => r.status === 'LICENSE').length, cancelled: runs.filter(r => r.status === 'CANCELLED').length };
   const slim = runs.map(r => ({ config: r.config, test: r.test, seed: r.seed, params: r.params, status: r.status, stage: r.stage || null, nextAction: r.nextAction || null, time: r.time, code: r.code, dir: r.dir, command: r.command, errors: r.parsed.errors, checks: r.parsed.checks, firstError: r.firstError || null, classification: r.classification || null, failureDir: r.failureDir || null, signature: r.signature || null, ucdb: r.ucdb || null, waves: r.waves, scenarios: r.parsed.scenarios, bins: r.parsed.bins }));
-  return { meta, totals, runs: slim, builds: Object.values(builds).map(b => ({ config: b.config, params: b.params, failed: b.failed, blocked: !!b.blocked, errors: b.errors, commands: b.commands, log: rel(path.join(root, 'runs', meta.runId), path.join(b.dir, 'build.log')) })), coverage: { functional: { pct: fpct }, types }, bins, scenarios: scen, requirements: reqs, signatures: Object.values(sigs), comparison, waivers };
+  return { meta, totals, runs: slim, builds: Object.values(builds).map(b => ({ config: b.config, params: b.params, failed: b.failed, blocked: !!b.blocked, errors: b.errors, commands: b.commands, log: rel(path.join(root, 'runs', meta.runId), path.join(b.dir, 'build.log')) })), coverage: { functional: { pct: meta.coverage && meta.coverage.functional === false ? null : (types[0] && types[0].state === 'reported' ? types[0].pct : fpct) }, types }, bins, scenarios: scen, requirements: reqs, signatures: Object.values(sigs), comparison, waivers };
 }
 
 function junit(res) {
@@ -663,4 +690,4 @@ function clean(root) {
   for (const d of ['runs']) { const p = path.join(root, d); if (fs.existsSync(p)) fs.rmSync(p, { recursive: true, force: true }); }
 }
 
-module.exports = { loadConfig, plannedFiles, writeFiles, regress, rerun, retry, clean, nextAction, scrubDir, parseSimLog, classify, statusOf, junit, nowId, runProc, assemble };
+module.exports = { covMode, functionalRow, covergroupRow, codeRow, loadConfig, plannedFiles, writeFiles, regress, rerun, retry, clean, nextAction, scrubDir, parseSimLog, classify, statusOf, junit, nowId, runProc, assemble };

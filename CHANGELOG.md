@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.15.1
+- **UVM on Questa: functional coverage now shows in the dashboard.** Newer Questa versions print the Covergroups row with `na` in the Hits and Misses columns. That row was skipped, so the dashboard showed only code coverage while the UCDB / HTML report had the covergroups. Fixes:
+  - Covergroups are read from that row, from the `TYPE …` lines of the detailed report, and from the Covergroup Bins row.
+  - The **Functional** panel of a UVM run shows the covergroup bins (hit / total). The covergroup panel lists each covergroup type.
+- **Coverage choice: Functional + code / Functional only / Code only.** What you pick is what is collected and shown.
+  - The panel you didn't ask for says "not requested" instead of a misleading "unavailable".
+  - On Questa UVM, *functional only* skips the code instrumentation (`+cover` / `-coverage`) but still saves the UCDB for the covergroups. Before this, "functional only" wrote no UCDB, so no covergroups were reported at all.
+  - Command line: `--cov both|code|functional|none`; `1` and `0` still work.
+- Removed a leftover note that named `adder4_cg` on every design.
+
 ## 0.15.0
 - **Memory / RAM template.** Single-port memories are detected by their address port; before this, a RAM with `wr_en` / `rd_en` was mistaken for a FIFO and every test failed.
   - Covers: write then read every address; the first and last address with 00 / FF / AA / 55 patterns; the reset value (taken from a `RESET_VALUE` / `INIT_VALUE` parameter); read and write in the same cycle (old or new data); overwrites; random traffic.

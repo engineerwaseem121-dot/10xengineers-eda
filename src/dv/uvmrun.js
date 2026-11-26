@@ -39,14 +39,14 @@ function steps(simId, t, ctx) {
   if (simId === 'questa') {
     const lib = path.join(runDir, 'work');
     const inc = uvmHome('questa') ? ['+incdir+' + path.join(uvmHome('questa'), 'src')] : [];
-    const cv = cov ? ['+cover=bcesft'] : [];
+    const cv = cov && cov.code ? ['+cover=bcesft'] : [];
     return {
       build: [
         { stage: 'compile', cmd: t.vlib, args: [lib], cwd: uvmDir },
         { stage: 'compile', cmd: t.vlog, args: ['-sv', '-timescale', '1ns/1ps', '+acc', ...cv, '-work', lib, ...inc, '-f', 'files.f'], cwd: uvmDir },
         { stage: 'elaborate', cmd: t.vopt, args: ['-work', lib, '+acc', ...cv, 'tb_top', '-o', 'tb_opt'], cwd: uvmDir }
       ],
-      run: { stage: 'simulate', cmd: t.vsim, args: ['-c', '-lib', lib, ...(cov ? ['-coverage'] : []), 'tb_opt', `+UVM_TESTNAME=${test}`, '-sv_seed', String(seed), '+UVM_VERBOSITY=UVM_MEDIUM', '-do', (cov ? 'coverage save -onexit cov.ucdb; ' : '') + 'run -all; quit -f'], cwd: runDir }
+      run: { stage: 'simulate', cmd: t.vsim, args: ['-c', '-lib', lib, ...(cov && cov.code ? ['-coverage'] : []), 'tb_opt', `+UVM_TESTNAME=${test}`, '-sv_seed', String(seed), '+UVM_VERBOSITY=UVM_MEDIUM', '-do', (cov ? 'coverage save -onexit cov.ucdb; ' : '') + 'run -all; quit -f'], cwd: runDir }
     };
   }
   if (simId === 'vcs') {
@@ -111,8 +111,10 @@ async function run(root, cfg, o) {
   const tests = (o.tests && o.tests.length ? o.tests : ['random']).map(t => testName(cfg, t));
   const seeds = (o.seeds && o.seeds.length ? o.seeds : [1]).map(Number);
   const timeoutMs = (o.timeoutS || 300) * 1000;
-  const cov = simId === 'questa' && (o.cov == null ? true : !!Number(o.cov));   // code + covergroup coverage (Questa)
-  log(`== UVM run ${runId}: ${cfg.dut.top} on ${det.adapter.label} ${det.version} — tests [${tests.join(', ')}] x seeds [${seeds.join(', ')}]${cov ? ' · coverage on' : ''}`);
+  const mode = require('./runner').covMode(o.cov, 'both');
+  const covModes = { code: mode === 'both' || mode === 'code', functional: mode === 'both' || mode === 'functional' };
+  const cov = simId === 'questa' && mode !== 'none' ? covModes : null;   // Questa: UCDB with code and/or covergroup coverage
+  log(`== UVM run ${runId}: ${cfg.dut.top} on ${det.adapter.label} ${det.version} — tests [${tests.join(', ')}] x seeds [${seeds.join(', ')}]${cov ? ` · coverage: ${mode}` : ''}`);
 
   // one build per run (the library / executable is test-independent)
   const buildDir = path.join(runBase, 'build');
@@ -154,7 +156,7 @@ async function run(root, cfg, o) {
   if (cov) {
     let dutModules = [];
     try { const hp = require('../hdlparse'); dutModules = cfg.dut.files.flatMap(f => hp.parseModules(fs.readFileSync(path.join(root, f), 'utf8')).map(m => m.name)); } catch (e) { /* fall back to totals */ }
-    coverage = require('./qcov').collect({ tools: det.tools, ucdbs: results.map(r => r.ucdb).filter(Boolean), outDir: path.join(runBase, 'coverage'), env, dutModules, dutFiles: cfg.dut.files, log });
+    coverage = require('./qcov').collect({ tools: det.tools, ucdbs: results.map(r => r.ucdb).filter(Boolean), outDir: path.join(runBase, 'coverage'), env, dutModules, dutFiles: cfg.dut.files, log, code: cov.code, functional: cov.functional });
     if (coverage.state !== 'reported') log(`[coverage] ${coverage.state}: ${coverage.message}`);
   }
   return finish(root, runBase, runId, simId, det, results, log, coverage, { cfg, buildLog, commands: plan.build.map(x => [x.cmd, ...x.args].join(' ')), failed: false, started: t0 });
@@ -179,7 +181,7 @@ function finish(root, runBase, runId, simId, det, results, log, coverage, ctx) {
         return { test: r.test, seed: r.seed, dir: path.relative(runBase, dir).replace(/\\/g, '/'), status: r.status, time: Math.round((r.ms || 0) / 10) / 100, parsed,
           firstError: r.status === 'PASS' ? null : (parsed.firstError || r.why), command: `dvflow uvm --sim ${simId} --tests ${r.test} --seed ${r.seed}`, waves: fs.existsSync(path.join(dir, 'waves.vcd')) };
       });
-      const pub = ext.publish(root, ctx.cfg, { kind: 'uvm', runId, simId, det, started: ctx.started ? new Date(ctx.started).toISOString() : null, runs, codeCov: coverage && coverage.state === 'reported' ? coverage : null,
+      const pub = ext.publish(root, ctx.cfg, { kind: 'uvm', runId, simId, det, started: ctx.started ? new Date(ctx.started).toISOString() : null, runs, codeCov: coverage && coverage.state === 'reported' ? coverage : null, covModes: cov || { code: false, functional: false },
         build: { failed: ctx.failed, errors: [], commands: ctx.commands, log: path.relative(runBase, ctx.buildLog).replace(/\\/g, '/') } });
       res.report = pub.report;
       log(`   dashboard:       ${pub.report}`);

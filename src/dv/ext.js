@@ -276,11 +276,15 @@ function register(context) {
   /** Coverage choice for simulators with a code-coverage engine; returns 0/1, or null when cancelled. */
   async function pickCoverage(simId, uvm) {
     const c = sim.capabilities(settings()).find(x => x.id === simId);
-    if (!c || !/^yes/.test(String(c.caps.code_coverage || ''))) return 0;
+    // simulators without a code-coverage engine: functional coverage (testbench bins) is all there is
+    if (!c || !/^yes/.test(String(c.caps.code_coverage || ''))) return 'functional';
+    const fun = uvm ? 'covergroups (UCDB)' : 'testbench bins';
+    const code = 'statement / branch / condition / expression / toggle / FSM of the DUT';
     const p = await vscode.window.showQuickPick([
-      { label: '$(graph) Functional + code coverage', description: uvm ? 'covergroups + statement/branch/condition/expression/toggle/FSM (merged UCDB + HTML report)' : 'testbench bins + statement/branch/condition/expression/toggle/FSM (merged UCDB + HTML report)', v: 1 },
-      { label: '$(dash) Functional coverage only', description: uvm ? 'no UCDB (faster)' : 'testbench bins only (faster)', v: 0 }
-    ], { placeHolder: 'Coverage', ignoreFocusOut: true });
+      { label: '$(graph) Functional + code coverage', description: `${fun} + ${code}`, v: 'both' },
+      { label: '$(symbol-event) Functional coverage only', description: `${fun}${uvm ? '' : ' (fastest)'}`, v: 'functional' },
+      { label: '$(code) Code coverage only', description: code, v: 'code' }
+    ], { placeHolder: 'Coverage to collect and show in the dashboard', ignoreFocusOut: true });
     return p ? p.v : null;
   }
 

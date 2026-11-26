@@ -221,6 +221,56 @@ t('adder checks a per-stage carry vector', () => {
   assert.ok(m.checks.some(c => c.name === 'Cout' && c.exp === 'm_cv[4:1]'));
 });
 
+console.log('Questa coverage (UVM): code / functional / both');
+const Q = R('src/dv/qcov.js'), RUN = R('src/dv/runner.js');
+// layout of a newer Questa "vcover report -summary -bydu": the Covergroups row has "na" hits/misses
+const QSUM = `Coverage Report Summary Data by design unit
+
+=================================================================================
+=== Design Unit: work.fifo_controller
+=================================================================================
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Branches                        16        16         0   100.00%
+    Conditions                      16        16         0   100.00%
+    Expressions                      3         3         0   100.00%
+    Statements                      21        21         0   100.00%
+    Toggles                         72        71         1    98.61%
+
+=================================================================================
+=== Design Unit: work.fifo_controller_pkg
+=================================================================================
+    Enabled Coverage              Bins      Hits    Misses  Coverage
+    ----------------              ----      ----    ------  --------
+    Covergroups                      1        na        na    96.00%
+        Coverpoints/Crosses         10        na        na        na
+            Covergroup Bins         31        29         2    93.54%
+    Statements                     710       199       511    28.02%
+`;
+const QDET = `COVERGROUP COVERAGE:
+Covergroup                                             Metric       Goal       Bins    Status
+ TYPE /fifo_controller_pkg/fifo_controller_coverage/fifo_controller_cg   96.00%        100          -    Uncovered
+`;
+const qo = { dutModules: ['fifo_controller'], dutFiles: ['fifo_controller.sv'] };
+t('covMode: old numbers and new words', () => assert.deepStrictEqual(['1', '0', 'both', 'code', 'functional', 'none', null].map(v => RUN.covMode(v, 'both')), ['both', 'functional', 'both', 'code', 'functional', 'none', 'both']));
+t('newer Questa: covergroups found although the row says "na"', () => {
+  const s = Q.summarize(QSUM, QDET, qo);
+  assert.strictEqual(s.covergroups.pct, 96); assert.deepStrictEqual(s.covergroups.bins, { hit: 29, total: 31 });
+  assert.strictEqual(s.covergroups.groups[0].name, '/fifo_controller_pkg/fifo_controller_coverage/fifo_controller_cg');
+  assert.strictEqual(s.code.pct, 99.22);   // DUT design unit only (127 / 128)
+});
+t('covergroups found without the details report (Covergroups row)', () => assert.strictEqual(Q.summarize(QSUM, '', qo).covergroups.pct, 96));
+const rows = mode => {
+  const m = { code: mode === 'both' || mode === 'code', functional: mode === 'both' || mode === 'functional' };
+  const c = Object.assign(Q.summarize(QSUM, QDET, Object.assign({}, qo, m)), { runs: 30 });
+  const meta = { kind: 'uvm', simLabel: 'Questa', coverage: { code: m.code, functional: m.functional, mode }, codeCov: c };
+  const caps = { simulator_covergroups: 'yes', code_coverage: 'yes' };
+  return { f: RUN.functionalRow(meta, [], [], [], null), g: RUN.covergroupRow(meta, caps), c: RUN.codeRow(meta, caps) };
+};
+t('both: functional (covergroup bins), covergroups and code all reported', () => { const r = rows('both'); assert.deepStrictEqual([r.f.state, r.f.pct, r.g.state, r.g.pct, r.c.state, r.c.pct], ['reported', 93.55, 'reported', 96, 'reported', 99.22]); });
+t('functional only: covergroups reported, code not requested', () => { const r = rows('functional'); assert.deepStrictEqual([r.f.state, r.g.state, r.c.state], ['reported', 'reported', 'disabled']); assert.match(r.c.note, /functional only/); });
+t('code only: code reported, functional not requested', () => { const r = rows('code'); assert.deepStrictEqual([r.f.state, r.g.state, r.c.state], ['disabled', 'disabled', 'reported']); });
+
 console.log('Excel viewer reader');
 const XR = R('src/xlsxread.js'), XW = R('src/xlsx.js');
 t('round trip: write a workbook, read it back', () => {

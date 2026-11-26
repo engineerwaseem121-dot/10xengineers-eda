@@ -50,7 +50,7 @@ function publish(root, cfg, o) {
     runId: o.runId, kind: o.kind, started: o.started || new Date().toISOString(), finished: new Date().toISOString(), root, dut: cfg.dut.top, template: cfg.template, language: 'sv',
     simulator: det.adapter ? det.adapter.id : o.simId, simRequested: o.simId, simLabel: det.adapter ? det.adapter.label : o.simId, simVersion: det.version || '', simAvailable: true, simReason: '', simSource: det.source || '',
     rev: 'unavailable', suite: o.kind === 'uvm' ? 'UVM' : 'cocotb', tests: [...new Set(o.runs.map(r => r.test))], seeds: [...new Set(o.runs.map(r => r.seed))], configs: ['default'],
-    waves: o.runs.some(r => r.waves), coverage: { code: !!o.codeCov, functional: true, assertions: false },
+    waves: o.runs.some(r => r.waves), coverage: { code: !!(o.codeCov && (!o.covModes || o.covModes.code)), functional: !o.covModes || o.covModes.functional, mode: o.covModes ? (o.covModes.code && o.covModes.functional ? 'both' : o.covModes.code ? 'code' : o.covModes.functional ? 'functional' : 'none') : 'functional', assertions: false },
     capabilities: Object.assign({}, caps, o.kind === 'cocotb' ? { simulator_covergroups: 'unsupported' } : {}), unsupported: [], scenarioFilter: null, host: require('os').hostname(),
     request: { sim: o.simId, suite: o.kind, tests: [...new Set(o.runs.map(r => r.test))] }, codeCov: o.codeCov || null,
     testbench: o.kind === 'uvm' ? 'UVM testbench (uvm/)' : 'cocotb testbench (cocotb/)'
@@ -61,7 +61,7 @@ function publish(root, cfg, o) {
   // these testbenches have no per-bin sampling in the log: say why instead of reporting 0%
   if (!runs.some(r => r.parsed && Object.keys(r.parsed.bins || {}).length)) {
     const f = result.coverage.types.find(t => /^Functional/.test(t.type));
-    if (f) { f.state = 'unavailable'; f.note = o.kind === 'uvm' ? 'the UVM testbench samples covergroups (Questa / VCS); testbench bins come from the simple testbench' : 'the cocotb testbench checks behaviour; bins come from the simple testbench'; }
+    if (f && f.state !== 'reported' && f.state !== 'disabled') { f.state = 'unavailable'; f.note = o.kind === 'uvm' ? 'the UVM testbench samples covergroups (Questa / VCS); testbench bins come from the simple testbench' : 'the cocotb testbench checks behaviour; bins come from the simple testbench'; }
   }
   const text = sim.redact(JSON.stringify(result, null, 2), meta.simulator);
   fs.mkdirSync(runDir, { recursive: true });

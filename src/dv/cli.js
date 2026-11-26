@@ -3,11 +3,11 @@
 /*
  * dvflow CLI — same engine as the 10xEngineers EDA extension.
  *   dvflow generate [--mode lightweight|uvm|both] [--yes]     (preview unless --yes)
- *   dvflow build    [--sim icarus] [--config default] [--cov 0|1]
+ *   dvflow build    [--sim icarus] [--config default] [--cov both|code|functional|none]
  *   dvflow run      --test smoke --seed 1 [--count 100]   (count = number of runs: first seed, then random seeds)
  *   dvflow regress  --bug 1                   bug-injection demo: runs the buggy RTL from dvflow.json "bug_injection", passes when the bug is caught
  *   [--config c] [--waves 1] [--scenario SC-..] [--iterations n]
- *   dvflow regress  [--suite full] [--tests a,b] [--seeds 1,2,3] [--configs a,b] [--waves 0|1] [--cov 0|1]
+ *   dvflow regress  [--suite full] [--tests a,b] [--seeds 1,2,3] [--configs a,b] [--waves 0|1] [--cov both|code|functional|none]
  *   dvflow rerun    --run <id|latest> --test t --seed s [--config c] [--waves 1]
  *   dvflow report   [--run <id|latest>]       dvflow capabilities       dvflow clean
  *   dvflow uvm      --sim questa|vcs|verilator [--test smoke] [--seed 1] [--count n]   run the generated UVM testbench
