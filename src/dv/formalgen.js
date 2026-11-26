@@ -18,7 +18,7 @@ function generate(root, cfg0) {
   // storage-heavy designs: check a small instance of the same RTL (4 entries x 4 bits). The solver's work grows
   // with every memory bit, and pointer, flag and ordering bugs show up the same way in a small FIFO.
   let small = null;
-  if (cfg.template === 'fifo') {
+  if (cfg.template === 'fifo' || cfg.template === 'memory') {
     const names = ((dut.mod && dut.mod.params) || []).map(p => p.name);
     const o = {};
     const aw = names.find(n => /^(ADDR_WIDTH|AW|ADDR_W|PTR_WIDTH|PTR_W|LOG2_DEPTH|DEPTH_LOG2)$/i.test(n));

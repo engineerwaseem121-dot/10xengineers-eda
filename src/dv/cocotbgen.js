@@ -191,7 +191,7 @@ function adder(cfg, model) {
   const code = `
 
 A, B, CIN = ${py(r.a)}, ${py(r.b)}, ${py(r.cin)}
-SUM, COUT, OVF = ${py(r.sum)}, ${py(r.cout)}, ${py(r.ovf)}
+SUM, COUT, OVF, COUT_VEC = ${py(r.sum)}, ${py(r.cout)}, ${py(r.ovf)}, ${py(r.cout_vec)}   # COUT_VEC: carry out of every stage
 W = ${W}
 MASK = (1 << W) - 1
 WIDE = ${sumW === W + 1 ? 'True' : 'False'}   # carry folded into a wider sum
@@ -205,6 +205,8 @@ def model(v):
     out = {SUM: full if WIDE else full & MASK}
     if COUT:
         out[COUT] = (full >> W) & 1
+    if COUT_VEC:
+        out[COUT_VEC] = ((a ^ b ^ full) >> 1) & MASK   # carry into bit k+1 = a ^ b ^ sum at bit k+1
     if OVF:
         sa, sb, ss = (a >> (W - 1)) & 1, (b >> (W - 1)) & 1, ((full & MASK) >> (W - 1)) & 1
         out[OVF] = int(sa == sb and ss != sa)
@@ -534,6 +536,102 @@ def V(wr=0, data=0, rd=0):
   return { kind: 'seq', code, body };
 }
 
+function memory(cfg, model) {
+  const r = model.roles, W = model.width, DEPTH = model.depth;
+  const clears = !!model.resetClears, rv = model.resetValue || '0', lat = model.readLatency != null ? model.readLatency : 1;
+  const code = `
+
+ADDR, WR_EN, RD_EN, WDATA, RDATA = ${py(r.addr)}, ${py(r.wr_en)}, ${py(r.rd_en)}, ${py(r.wdata)}, ${py(r.rdata)}
+W = ${W}
+MASK = (1 << W) - 1
+DEPTH = ${DEPTH}
+RESET_CLEARS = ${clears ? 'True' : 'False'}
+RESET_VALUE = 0x${rv}
+READ_LATENCY = ${lat}
+NEW_ON_RW = ${(cfg.behavior.read_during_write || 'old') === 'new' ? 'True' : 'False'}
+IDLE = {ADDR: 0, WR_EN: 0, WDATA: 0, **({RD_EN: 0} if RD_EN else {})}
+
+
+class Model:
+    """Single-port memory: write, read-back, reset value; unwritten words are not checked unless reset loads them."""
+
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.mem = [RESET_VALUE] * DEPTH
+        self.known = [RESET_CLEARS] * DEPTH
+        self.did_rd, self.rdata, self.rknown = False, RESET_VALUE, False
+
+    def step(self, v):
+        a, rd = v[ADDR] % DEPTH, (v.get(RD_EN, 0) if RD_EN else 1)
+        self.did_rd = bool(rd)
+        if rd:
+            if v.get(WR_EN, 0) and NEW_ON_RW:
+                self.rdata, self.rknown = v[WDATA] & MASK, True
+            else:
+                self.rdata, self.rknown = self.mem[a], self.known[a]
+        if v.get(WR_EN, 0):
+            self.mem[a], self.known[a] = v[WDATA] & MASK, True
+
+    def outputs(self, v):
+        if READ_LATENCY:
+            return {RDATA: self.rdata} if self.did_rd and self.rknown else {}
+        a = v[ADDR] % DEPTH
+        return {RDATA: self.mem[a]} if self.known[a] else {}
+
+
+def V(addr=0, wr=0, rd=0, data=0):
+    d = {ADDR: addr % DEPTH, WR_EN: wr, WDATA: data & MASK}
+    if RD_EN:
+        d[RD_EN] = rd
+    return d
+`;
+  const span = DEPTH <= 64 ? 'range(DEPTH)' : 'list(range(16)) + list(range(DEPTH - 16, DEPTH))';
+  const L = DEPTH - 1;
+  const pats = '(0, MASK, 0xAA & MASK, 0x55 & MASK)';
+  const body = {
+    'SC-MEM-001': `    await do_reset(dut, m)
+    for a in ${span}:
+        await step(chk, dut, m, V(a, 1, 0, (a * 0x3B + 0x11) & MASK))
+    for a in ${span}:
+        await step(chk, dut, m, V(a, 0, 1))
+    await step(chk, dut, m, V())`,
+    'SC-MEM-002': `    await do_reset(dut, m)
+    for p in ${pats}:
+        for a in (0, ${L}):
+            await step(chk, dut, m, V(a, 1, 0, p))
+            await step(chk, dut, m, V(a, 0, 1))
+    await step(chk, dut, m, V())`,
+    'SC-MEM-003': `    await do_reset(dut, m)
+    await step(chk, dut, m, V(0, 0, 1))
+    await step(chk, dut, m, V(${L}, 0, 1))
+    await step(chk, dut, m, V(0, 1, 0, 0x5A))
+    await step(chk, dut, m, V(${L}, 1, 0, 0xA5))
+    await do_reset(dut, m)
+    await step(chk, dut, m, V(0, 0, 1))
+    await step(chk, dut, m, V(${L}, 0, 1))
+    await step(chk, dut, m, V())`,
+    'SC-MEM-004': `    await do_reset(dut, m)
+    await step(chk, dut, m, V(${1 % DEPTH}, 1, 0, 0x3C))
+    await step(chk, dut, m, V(${1 % DEPTH}, 1, 1, 0xC3))
+    await step(chk, dut, m, V(${1 % DEPTH}, 0, 1))
+    await step(chk, dut, m, V())`,
+    'SC-MEM-005': `    await do_reset(dut, m)
+    await step(chk, dut, m, V(0, 1, 0, 0x11))
+    await step(chk, dut, m, V(${1 % DEPTH}, 1, 0, 0x22))
+    await step(chk, dut, m, V(0, 1, 0, 0x33))
+    await step(chk, dut, m, V(0, 0, 1))
+    await step(chk, dut, m, V(${1 % DEPTH}, 0, 1))
+    await step(chk, dut, m, V())`,
+    'SC-MEM-006': `    await do_reset(dut, m)
+    for _ in range(ITERATIONS):
+        await step(chk, dut, m, V(rnd.getrandbits(16), rnd.getrandbits(1), rnd.getrandbits(1), rnd.getrandbits(W)))
+    await step(chk, dut, m, V())`
+  };
+  return { kind: 'seq', code, body };
+}
+
 function custom(cfg, model) {
   const outs = model.outputs.map(o => `        ${py(o.name)}: 0,   # TODO expected ${o.name}`).join('\n');
   const code = `
@@ -556,7 +654,7 @@ ${outs}
   return { kind: model.seq ? 'unsupported-seq' : 'comb', code, body };
 }
 
-const GEN = { adder, counter: (c, m) => counter(c, m, false), updown_counter: (c, m) => counter(c, m, true), dff: register, latch: register, shift_register: shift, pipeline, fifo, custom };
+const GEN = { adder, counter: (c, m) => counter(c, m, false), updown_counter: (c, m) => counter(c, m, true), dff: register, latch: register, shift_register: shift, pipeline, fifo, memory, custom };
 
 /** cocotb test functions: one per test name, running that test's scenarios in plan order */
 function tests(cfg, model, g) {

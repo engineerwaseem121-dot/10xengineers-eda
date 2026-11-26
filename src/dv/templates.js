@@ -45,10 +45,12 @@ function adder(cfg, ports) {
   if (!r.sum) r.sum = (ports.find(p => p.dir === 'output' && p.width === W) || ports.find(p => p.dir === 'output' && p.width === W + 1) || {}).name;
   get('cout', 'output', /^(cout|co|c_out|carry|carry_out|carryout)$/i, 1);
   get('ovf', 'output', /^(ovf|overflow|v|of)$/i, 1);
+  // a carry port as wide as the operands carries every stage's carry out (ripple-carry adders often expose this)
+  if (!r.cout && !r.cout_vec && W > 1) { const cv = ports.find(p => p.dir === 'output' && p.width === W && p.name !== r.sum && /^(cout|co|c_out|carry|carries|carry_out|c)$/i.test(p.name)); if (cv) r.cout_vec = cv.name; }
   const sumW = (P(ports, r.sum) || {}).width || W;
   const wide = sumW === W + 1;               // carry folded into a wider sum
   const MAX = maxOf(W);
-  const hasCin = !!r.cin, hasCout = !!r.cout || wide, hasOvf = !!r.ovf;
+  const hasCin = !!r.cin, hasCout = !!r.cout || wide || !!r.cout_vec, hasOvf = !!r.ovf;
   const cin = hasCin ? 'in_' + r.cin : "1'b0";
   const inputs = [{ name: r.a, width: W }, { name: r.b, width: W }].concat(hasCin ? [{ name: r.cin, width: 1 }] : []);
   const applyArgs = (a, b, c) => [a, b].concat(hasCin ? [c] : []).join(', ');
@@ -56,6 +58,8 @@ function adder(cfg, ports) {
   const checks = [{ name: r.sum, exp: wide ? 'm_full' : `m_full[${W - 1}:0]` }];
   if (r.cout) checks.push({ name: r.cout, exp: `m_full[${W}]` });
   if (hasOvf) checks.push({ name: r.ovf, exp: `(in_${r.a}[${W - 1}] == in_${r.b}[${W - 1}]) && (m_full[${W - 1}] != in_${r.a}[${W - 1}])` });
+  // per-stage carries: carry into bit k = a[k] ^ b[k] ^ sum[k]; stage i's carry out = carry into bit i+1
+  if (r.cout_vec) checks.push({ name: r.cout_vec, exp: `m_cv[${W}:1]` });
   const reqs = [
     { id: 'REQ-ADD-01', text: `${r.sum} shall equal ${r.a} + ${r.b}${hasCin ? ' + ' + r.cin : ''} modulo 2^${W}${wide ? ' (with the carry in the MSB)' : ''}.` },
     { id: 'REQ-ADD-02', text: hasCout ? `The carry-out shall be 1 exactly when the true sum exceeds ${MAX}.` : 'The interface exposes no carry-out; the sum shall wrap modulo 2^W.' },
@@ -64,6 +68,7 @@ function adder(cfg, ports) {
   ];
   if (hasCin) reqs.push({ id: 'REQ-ADD-05', text: `${r.cin} shall add one to the sum.` });
   if (hasOvf) reqs.push({ id: 'REQ-ADD-06', text: `${r.ovf} shall flag signed two's-complement overflow.` });
+  if (r.cout_vec) reqs.push({ id: 'REQ-ADD-07', text: `${r.cout_vec}[i] shall be the carry out of stage i (${r.cout_vec}[${W - 1}] is the adder's carry out).` });
   const H = v => hex(v, W);
   const sc = [
     { id: 'SC-ADD-001', req: 'REQ-ADD-01', test: 'smoke', title: 'Smoke: small operands', desc: 'Basic additions with small values.', stimulus: `(0,0) (1,1) (2,3) (${H(MAX >> 1n)},1)`, expected: 'sum = a + b', body: [[0, 0, 0], [1, 1, 0], [2, 3, 0]].map(([a, b, c]) => `apply(${applyArgs(H(a), H(b), "1'b" + c)});`).join(' ') + ` apply(${applyArgs(H(MAX >> 1n), H(1), "1'b0")});` },
@@ -84,16 +89,23 @@ function adder(cfg, ports) {
   if (hasOvf) bins.push({ id: 'BIN-ADD-SIGNED_OVF', scenario: 'SC-ADD-003', desc: 'signed overflow', cond: `(in_${r.a}[${W - 1}] == in_${r.b}[${W - 1}]) && (m_full[${W - 1}] != in_${r.a}[${W - 1}])`, stimulus: `apply(a=${H(MAX >> 1n)}, b=1)` });
   return {
     seq: false, roles: r, width: W, inputs, outputs: ports.filter(p => p.dir === 'output').map(p => ({ name: p.name, width: p.width })),
-    decl: `  logic [${W}:0] m_full;`, reset: '', step: `    m_full = {1'b0, in_${r.a}} + {1'b0, in_${r.b}} + ${hasCin ? `{${W}'d0, ${cin}}` : "0"};`,
+    decl: `  logic [${W}:0] m_full;${r.cout_vec ? `\n  logic [${W}:0] m_cv;` : ''}`, reset: '', step: `    m_full = {1'b0, in_${r.a}} + {1'b0, in_${r.b}} + ${hasCin ? `{${W}'d0, ${cin}}` : "0"};${r.cout_vec ? `\n    m_cv = {1'b0, in_${r.a}} ^ {1'b0, in_${r.b}} ^ m_full;` : ''}`,
     checks, requirements: reqs, scenarios: sc, bins,
     sva: `  // combinational: result must be stable and known whenever operands are known\n  a_known: assert property (@(posedge clk) !$isunknown({${r.a}, ${r.b}}) |-> !$isunknown(${r.sum}));`
   };
 }
 
 /* ====================================================================== counters 0..N (+ up/down) */
-function counter(cfg, ports, updown) {
+function counter(cfg, ports, updown, params) {
   const { r, get } = roles(ports, cfg);
-  const b = cfg.behavior;
+  const b = Object.assign({}, cfg.behavior);
+  // terminal count from the design's own parameter when dvflow.json does not set one (counter #(.N(9)) counts 0..9)
+  if (b.N == null && params) {
+    const pv = k => (params[k] != null && isFinite(Number(params[k])) ? Number(params[k]) : null);
+    const n = ['N', 'MAX', 'MAX_COUNT', 'COUNT_MAX', 'MAX_VAL', 'MAX_VALUE', 'LIMIT', 'TERMINAL', 'TC_VALUE', 'END_COUNT'].map(pv).find(v => v != null);
+    const mod = ['MOD', 'MODULUS', 'MODULO'].map(pv).find(v => v != null);
+    if (n != null) b.N = n; else if (mod != null && mod > 0) b.N = mod - 1;
+  }
   get('en', 'input', /^(en|enable|ce|cnt_en|count_en|inc)$/i, 1);
   get('up', 'input', /^(up|dir|up_dn|updown|up_down)$/i, 1);
   get('load', 'input', /^(load|ld|set)$/i, 1);
@@ -430,6 +442,89 @@ function fifo(cfg, ports, params) {
   };
 }
 
+/* ====================================================================== single-port memory / RAM */
+/* Model: array of DEPTH words plus a "known" bit per word. behavior.reset_clears (default: true when the RTL has a
+ * RESET_VALUE / INIT_VALUE parameter) says whether reset loads every word; behavior.read_latency 1 (registered, default)
+ * or 0 (combinational); behavior.read_during_write 'old' (default) or 'new' for a read and write in the same cycle. */
+function memory(cfg, ports, params) {
+  const { r, get } = roles(ports, cfg);
+  const b = cfg.behavior || {};
+  get('addr', 'input', /^(addr|address|adr|a|waddr|raddr|addr_i|i_addr)$/i);
+  get('wr_en', 'input', /^(wr_en|we|wen|write_en|wr|write|we_i|i_we|mem_we)$/i, 1);
+  get('rd_en', 'input', /^(rd_en|re|ren|read_en|rd|read|re_i|i_re|mem_re|oe)$/i, 1);
+  get('wdata', 'input', /^(wdata|wr_data|din|data_in|d|data_i|i_data|w_data)$/i);
+  get('rdata', 'output', /^(rdata|rd_data|dout|data_out|q|data_o|o_data|r_data)$/i);
+  const AW = (P(ports, r.addr) || {}).width || 2;
+  const W = (P(ports, r.wdata) || P(ports, r.rdata) || {}).width || 8;
+  const DEPTH = Number(b.depth != null ? b.depth : 2 ** AW);
+  const pv = k => (params && params[k] != null && isFinite(Number(params[k])) ? BigInt(Number(params[k])) : null);
+  const rvParam = ['RESET_VALUE', 'INIT_VALUE', 'RST_VAL', 'RESET_VAL', 'INIT'].map(pv).find(v => v != null);
+  const clears = b.reset_clears != null ? !!b.reset_clears : rvParam != null;
+  const RV = (b.reset_value != null ? BigInt(b.reset_value) : rvParam != null ? rvParam : 0n) & maxOf(W);
+  const lat = Number(b.read_latency != null ? b.read_latency : 1);
+  const newOnRw = (b.read_during_write || 'old') === 'new';
+  const hasRd = !!r.rd_en;
+  const H = v => `${W}'h${BigInt(v).toString(16)}`;
+  const A = v => `${AW}'d${v}`;
+  const MAX = maxOf(W), LAST = DEPTH - 1;
+  const inputs = [{ name: r.addr, width: AW }, { name: r.wr_en, width: 1 }].concat(hasRd ? [{ name: r.rd_en, width: 1 }] : [], [{ name: r.wdata, width: W }]);
+  const ap = (a, w, rd, d) => `apply(${[a, w].concat(hasRd ? [rd] : [], [d]).join(', ')});`;
+  const WR = (a, d) => ap(a, "1'b1", "1'b0", d), RD = a => ap(a, "1'b0", "1'b1", `${W}'d0`), IDLE = ap(A(0), "1'b0", "1'b0", `${W}'d0`);
+  const rdIn = hasRd ? `in_${r.rd_en}` : "1'b1", wrIn = `in_${r.wr_en}`, ad = `in_${r.addr}`;
+  const span = DEPTH <= 64 ? DEPTH : 16;          // big memories: first and last 16 words in the directed tests
+  const pat = a => `${W}'(${a} * 8'h3B + 8'h11)`;
+  const addrsLoop = (body) => DEPTH <= 64 ? `for (int a = 0; a < ${DEPTH}; a++) ${body}` : `for (int k = 0; k < ${2 * span}; k++) begin int a; a = k < ${span} ? k : ${DEPTH} - ${2 * span} + k; ${body} end`;
+  const reqs = [
+    { id: 'REQ-MEM-01', text: `A word written with ${r.wr_en} shall be read back unchanged from the same address${lat ? ` one clock after ${r.rd_en || 'the read'}` : ''}.` },
+    { id: 'REQ-MEM-02', text: `The first (0) and last (${LAST}) addresses shall store and return all-zeros, all-ones and alternating patterns.` },
+    { id: 'REQ-MEM-03', text: clears ? `Reset shall load every word with ${H(RV)}.` : 'Words not written since reset are undefined (not checked).' },
+    { id: 'REQ-MEM-04', text: `A read and a write to the same address in the same cycle shall return the ${newOnRw ? 'new' : 'old'} data; the write shall take effect.` },
+    { id: 'REQ-MEM-05', text: 'Writing an address again shall replace its data; other addresses shall be unaffected.' }
+  ];
+  const sc = [
+    { id: 'SC-MEM-001', req: 'REQ-MEM-01', test: 'smoke', title: 'Write then read every address', desc: `Write a distinct pattern to ${DEPTH <= 64 ? 'every address' : 'the first and last 16 addresses'}, then read them all back.`, stimulus: 'write all, then read all', expected: 'each read returns the word written to that address', body: `do_reset(); ${addrsLoop(WR(`${AW}'(a)`, pat('a')))} ${addrsLoop(RD(`${AW}'(a)`))} ${IDLE}` },
+    { id: 'SC-MEM-002', req: 'REQ-MEM-02', test: 'boundary', title: 'First and last address', desc: 'Write 00, FF, AA, 55 to address 0 and the last address, reading back after each write.', stimulus: `addr 0 and ${LAST}: write/read 4 patterns each`, expected: 'every pattern reads back unchanged', body: `do_reset(); ${[0n, MAX, 0xAAn & MAX, 0x55n & MAX].map(v => `${WR(A(0), H(v))} ${RD(A(0))} ${WR(A(LAST), H(v))} ${RD(A(LAST))}`).join(' ')} ${IDLE}` },
+    { id: 'SC-MEM-003', req: 'REQ-MEM-03', test: 'reset', title: 'Reset', desc: clears ? `Read after reset (expect ${H(RV)}), write, reset again, read again.` : 'Reset, write, read (unwritten words are not checked).', stimulus: 'reset, read, write, reset, read', expected: clears ? `reads return ${H(RV)} after each reset` : 'written words read back', body: `do_reset(); ${RD(A(0))} ${RD(A(LAST))} ${WR(A(0), H(0x5An & MAX))} ${WR(A(LAST), H(0xA5n & MAX))} do_reset(); ${RD(A(0))} ${RD(A(LAST))} ${IDLE}` },
+    { id: 'SC-MEM-004', req: 'REQ-MEM-04', test: 'boundary', title: 'Read and write in the same cycle', desc: 'Write X, then read and write Y to the same address in one cycle, then read.', stimulus: 'wr X; rd+wr Y; rd', expected: `the combined cycle returns ${newOnRw ? 'Y' : 'X'}; the next read returns Y`, body: hasRd ? `do_reset(); ${WR(A(1 % DEPTH), H(0x3Cn & MAX))} ${ap(A(1 % DEPTH), "1'b1", "1'b1", H(0xC3n & MAX))} ${RD(A(1 % DEPTH))} ${IDLE}` : `do_reset(); ${WR(A(1 % DEPTH), H(0x3Cn & MAX))} ${WR(A(1 % DEPTH), H(0xC3n & MAX))} ${IDLE}` },
+    { id: 'SC-MEM-005', req: 'REQ-MEM-05', test: 'boundary', title: 'Overwrite, neighbours unaffected', desc: 'Write two neighbouring addresses, overwrite one, read both.', stimulus: 'wr a0, wr a1, wr a0 again, rd a0, rd a1', expected: 'a0 has the new word, a1 is unchanged', body: `do_reset(); ${WR(A(0), H(0x11n & MAX))} ${WR(A(1 % DEPTH), H(0x22n & MAX))} ${WR(A(0), H(0x33n & MAX))} ${RD(A(0))} ${RD(A(1 % DEPTH))} ${IDLE}` },
+    { id: 'SC-MEM-006', req: 'REQ-MEM-01', test: 'random', title: 'Seeded random traffic', desc: 'Random addresses, enables and data.', stimulus: 'ITERATIONS random cycles', expected: 'every checked read equals the model', body: `do_reset(); repeat (ITERATIONS) ${ap(`${AW}'(rnd())`, "1'(rnd())", "1'(rnd())", `${W}'(rnd())`)} ${IDLE}` }
+  ];
+  const bins = [
+    { id: 'BIN-MEM-WRITE_FIRST', scenario: 'SC-MEM-002', desc: 'write to address 0', cond: `${wrIn} && ${ad} == ${A(0)}`, stimulus: 'wr_en=1, addr=0' },
+    { id: 'BIN-MEM-WRITE_LAST', scenario: 'SC-MEM-002', desc: `write to address ${LAST}`, cond: `${wrIn} && ${ad} == ${A(LAST)}`, stimulus: `wr_en=1, addr=${LAST}` },
+    { id: 'BIN-MEM-READ_FIRST', scenario: 'SC-MEM-002', desc: 'read address 0', cond: `${rdIn} && ${ad} == ${A(0)}`, stimulus: 'read addr 0' },
+    { id: 'BIN-MEM-READ_LAST', scenario: 'SC-MEM-002', desc: `read address ${LAST}`, cond: `${rdIn} && ${ad} == ${A(LAST)}`, stimulus: `read addr ${LAST}` },
+    { id: 'BIN-MEM-DATA_ONES', scenario: 'SC-MEM-002', desc: 'all-ones word written', cond: `${wrIn} && in_${r.wdata} == ${H(MAX)}`, stimulus: `write ${H(MAX)}` },
+    { id: 'BIN-MEM-OVERWRITE', scenario: 'SC-MEM-005', desc: 'write to an address already written since reset', cond: `${wrIn} && p_written`, stimulus: 'write the same address twice' }
+  ];
+  if (hasRd) bins.push({ id: 'BIN-MEM-READ_WRITE_SAME', scenario: 'SC-MEM-004', desc: 'read and write in the same cycle', cond: `${wrIn} && ${rdIn}`, stimulus: 'wr_en=1 and rd_en=1' });
+  if (clears) bins.push({ id: 'BIN-MEM-READ_RESET_VALUE', scenario: 'SC-MEM-003', desc: 'read of a word not written since reset', cond: `${rdIn} && !p_written`, stimulus: 'read right after reset' });
+  const checks = lat
+    ? [{ name: r.rdata, exp: 'm_rdata', guard: 'm_did_rd && m_rd_known' }]
+    : [{ name: r.rdata, exp: `m_mem[${ad}]`, guard: `m_known[${ad}]` }];
+  const rstOn = cfg.reset.name ? `${cfg.reset.active_low ? '!' : ''}${cfg.reset.name}` : "1'b0";
+  return {
+    seq: true, roles: r, width: W, depth: DEPTH, resetClears: clears, resetValue: RV.toString(16), readLatency: lat, inputs, outputs: ports.filter(p => p.dir === 'output').map(p => ({ name: p.name, width: p.width })),
+    decl: `  // memory reference model: ${DEPTH} x ${W} bits, read latency ${lat}, read-during-write returns ${newOnRw ? 'new' : 'old'} data
+  logic [${W - 1}:0] m_mem [0:${DEPTH - 1}];
+  bit m_known [0:${DEPTH - 1}];
+  bit m_written [0:${DEPTH - 1}];
+  logic [${W - 1}:0] m_rdata;
+  bit m_did_rd, m_rd_known, p_written;`,
+    reset: `    for (int i = 0; i < ${DEPTH}; i++) begin m_mem[i] = ${H(RV)}; m_known[i] = ${clears ? 1 : 0}; m_written[i] = 0; end
+    m_rdata = ${H(RV)}; m_did_rd = 0; m_rd_known = 0; p_written = 0;`,
+    step: `    p_written = m_written[${ad}];
+    m_did_rd = ${rdIn};
+    if (${rdIn}) begin
+      if (${wrIn} && ${newOnRw ? 1 : 0}) begin m_rdata = in_${r.wdata}; m_rd_known = 1; end
+      else begin m_rdata = m_mem[${ad}]; m_rd_known = m_known[${ad}]; end
+    end
+    if (${wrIn}) begin m_mem[${ad}] = in_${r.wdata}; m_known[${ad}] = 1; m_written[${ad}] = 1; end`,
+    checks, requirements: reqs, scenarios: sc, bins,
+    sva: clears && lat ? `  a_rdata_known: assert property (@(${cfg.clock.edge} ${cfg.clock.name || 'clk'}) disable iff (${rstOn}) ${hasRd ? `${r.rd_en} |=> ` : ''}!$isunknown(${r.rdata}));   // every word has a reset value, so a read never returns X` : ''
+  };
+}
+
 /* ====================================================================== custom (user-supplied model) */
 function custom(cfg, ports) {
   const b = cfg.behavior;
@@ -451,13 +546,14 @@ function custom(cfg, ports) {
 
 const TEMPLATES = {
   adder: { label: 'Adder (2/4/8-bit or parameterized)', build: adder },
-  counter: { label: 'Counter 0..N (wrap or saturate)', build: (c, p) => counter(c, p, false) },
-  updown_counter: { label: 'Up/down counter', build: (c, p) => counter(c, p, true) },
+  counter: { label: 'Counter 0..N (wrap or saturate)', build: (c, p, v) => counter(c, p, false, v) },
+  updown_counter: { label: 'Up/down counter', build: (c, p, v) => counter(c, p, true, v) },
   dff: { label: 'D flip-flop / register', build: (c, p) => register(Object.assign({}, c, { behavior: Object.assign({ kind: 'dff' }, c.behavior) }), p) },
   latch: { label: 'Transparent latch', build: (c, p) => register(Object.assign({}, c, { behavior: Object.assign({}, c.behavior, { kind: 'latch' }) }), p) },
   shift_register: { label: 'Shift register', build: shift },
   pipeline: { label: 'Valid/data pipeline (scoreboard)', build: pipeline },
   fifo: { label: 'Synchronous FIFO (full/empty/count, overflow/underflow)', build: fifo },
+  memory: { label: 'Single-port memory / RAM (write, read-back, reset value)', build: memory },
   custom: { label: 'Custom (your reference model)', build: custom }
 };
 
@@ -465,6 +561,9 @@ const TEMPLATES = {
 function guess(mod) {
   const n = mod.name.toLowerCase();
   const names = mod.ports.map(p => p.name.toLowerCase());
+  // a RAM has an address port (a FIFO does not) — check it first, since both have write/read enables
+  const hasAddr = names.some(x => /^(addr|address|adr|waddr|raddr|addr_i|i_addr)$/.test(x));
+  if (!/fifo|queue/.test(n) && (/\b(ram|mem|memory|sram|regfile|register_file)\b|mem|ram/.test(n) || (hasAddr && names.some(x => /^(wr_en|we|wen|write_en|write)$/.test(x)))) && hasAddr && !(names.includes('full') && names.includes('empty'))) return 'memory';
   if (/fifo|queue/.test(n) || (names.includes('full') && names.includes('empty')) || (names.some(x => /^(wr_en|we|push|wr)$/.test(x)) && names.some(x => /^(rd_en|re|pop|rd)$/.test(x)))) return 'fifo';
   if (/add/.test(n) || (names.includes('sum') || names.includes('cout'))) return 'adder';
   if (/shift|sipo|piso|shreg/.test(n)) return 'shift_register';

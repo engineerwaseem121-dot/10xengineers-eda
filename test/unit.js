@@ -204,6 +204,23 @@ t('FIFO rd_data is checked only after an accepted read', () => assert.strictEqua
 t('typographic quotes found with line numbers (comments ignored)', () => { const s = TB.smartChars('a\nrd <= ’0;\n// fine ’ in a comment\n'); assert.strictEqual(s.length, 1); assert.strictEqual(s[0].line, 2); });
 t('typographic quotes fixed', () => assert.strictEqual(TB.fixSmartChars('1’b0 “x”'), '1\'b0 "x"'));
 
+console.log('Templates from tutorial-site designs');
+const port = (name, dir, width) => ({ name, dir, width });
+const ctl = { behavior: {}, clock: { name: 'clk', edge: 'posedge' }, reset: { name: 'rst_n', active_low: true } };
+t('memory with wr_en/rd_en is detected as memory, not FIFO', () => assert.strictEqual(T.guess({ name: 'memory', ports: [port('clk', 'input', 1), port('reset', 'input', 1), port('addr', 'input', 2), port('wr_en', 'input', 1), port('rd_en', 'input', 1), port('wdata', 'input', 8), port('rdata', 'output', 8)] }), 'memory'));
+t('memory reset value comes from the RESET_VALUE parameter', () => {
+  const m = T.TEMPLATES.memory.build(Object.assign({ template: 'memory' }, ctl), [port('clk', 'input', 1), port('addr', 'input', 2), port('wr_en', 'input', 1), port('rd_en', 'input', 1), port('wdata', 'input', 8), port('rdata', 'output', 8)], { RESET_VALUE: 255 });
+  assert.strictEqual(m.depth, 4); assert.strictEqual(m.resetClears, true); assert.strictEqual(m.resetValue, 'ff');
+});
+t('counter terminal count comes from the N parameter', () => {
+  const m = T.TEMPLATES.counter.build(Object.assign({ template: 'counter' }, ctl), [port('clk', 'input', 1), port('en', 'input', 1), port('count', 'output', 4), port('tc', 'output', 1)], { N: 9 });
+  assert.strictEqual(m.N, 9);
+});
+t('adder checks a per-stage carry vector', () => {
+  const m = T.TEMPLATES.adder.build(Object.assign({ template: 'adder' }, ctl), [port('A', 'input', 4), port('B', 'input', 4), port('Cin', 'input', 1), port('S', 'output', 4), port('Cout', 'output', 4)], {});
+  assert.ok(m.checks.some(c => c.name === 'Cout' && c.exp === 'm_cv[4:1]'));
+});
+
 console.log('Excel viewer reader');
 const XR = R('src/xlsxread.js'), XW = R('src/xlsx.js');
 t('round trip: write a workbook, read it back', () => {

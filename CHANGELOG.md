@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.15.0
+- **Memory / RAM template.** Single-port memories are detected by their address port; before this, a RAM with `wr_en` / `rd_en` was mistaken for a FIFO and every test failed.
+  - Covers: write then read every address; the first and last address with 00 / FF / AA / 55 patterns; the reset value (taken from a `RESET_VALUE` / `INIT_VALUE` parameter); read and write in the same cycle (old or new data); overwrites; random traffic.
+  - Works with 1-cycle or combinational reads, in the SV testbench, UVM, cocotb and formal.
+- **Counter:** the terminal count now comes from the design's `N` / `MAX` / `MOD` parameter. A `counter #(.N(9))` used to be modelled as 0..15.
+- **Adder:** a carry port as wide as the operands (`Cout[SIZE-1:0]`, the carry out of every stage, as in many ripple-carry adders) is now checked. It used to be ignored silently.
+- **CLI:** `--seeds 1` now means seed 1. It used to be read as a bare flag, and the default seeds ran.
+- `examples/sites/`: ripple-carry adder, D flip-flop, memory and 0..N counter, matching the VLSI Verify, ChipVerify and Verification Guide tutorials (original code; source URLs recorded), plus a list of more sites with designs to try.
+
 ## 0.14.0
 - **Excel viewer in VS Code.** `testplan.xlsx`, coverage workbooks and any other `.xlsx` open in a read-only tab. No Excel or separate viewer extension needed.
   - Sheet tabs with row counts, search (`/`), sort by any column, a sticky header and coloured status cells (PASS / FAIL / HOLE / NOT RUN …).

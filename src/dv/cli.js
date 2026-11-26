@@ -31,7 +31,7 @@ function args(argv) {
   const o = { _: [] };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a.startsWith('--')) { const k = a.slice(2); const v = argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[++i] : '1'; o[k] = v; }
+    if (a.startsWith('--')) { const k = a.slice(2); const has = argv[i + 1] != null && !argv[i + 1].startsWith('--'); const v = has ? argv[++i] : '1'; o[k] = v; if (has) (o._given = o._given || new Set()).add(k); }
     else o._.push(a);
   }
   return o;
@@ -44,7 +44,8 @@ const seedList = (seed, count) => { const n = Math.max(1, Number(count) || 1); c
  * (see seeds.js); the older "--seed N --count M" (N, then M-1 random seeds) still works.
  */
 function seedsOf(a, fallback) {
-  const spec = a.seeds && a.seeds !== '1' ? a.seeds : (a.seed && /[:,.]|rand/i.test(a.seed) ? a.seed : null);
+  // a bare --seeds reads as '1'; an explicit '--seeds 1' means seed 1
+  const spec = a.seeds && (a.seeds !== '1' || (a._given && a._given.has('seeds'))) ? a.seeds : (a.seed && /[:,.]|rand/i.test(a.seed) ? a.seed : null);
   if (spec) {
     const r = require('./seeds').parseSeeds(spec);
     if (r.error) throw Object.assign(new Error('--seeds ' + spec + ': ' + r.error), { exitCode: 3 });
