@@ -463,6 +463,77 @@ class Model:
   return { kind: 'seq', code, body };
 }
 
+function fifo(cfg, model) {
+  const r = model.roles, W = model.width, DEPTH = model.depth;
+  const code = `
+
+WR_EN, WR_DATA, RD_EN = ${py(r.wr_en)}, ${py(r.wr_data)}, ${py(r.rd_en)}
+RD_DATA, RD_VALID, FULL, EMPTY, WR_READY, COUNT = ${py(r.rd_data)}, ${py(r.rd_valid)}, ${py(r.full)}, ${py(r.empty)}, ${py(r.wr_ready)}, ${py(r.count)}
+W = ${W}
+MASK = (1 << W) - 1
+DEPTH = ${DEPTH}
+FWFT = ${model.fwft ? 'True' : 'False'}   # first-word fall-through (rd_data shows the head while not empty)
+IDLE = {WR_EN: 0, WR_DATA: 0, RD_EN: 0}
+
+
+class Model:
+    """Synchronous FIFO: in-order, writes while full and reads while empty are ignored."""
+
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.q, self.rd_data, self.did_rd = deque(), 0, False
+
+    def step(self, v):
+        do_rd = bool(v.get(RD_EN, 0)) and len(self.q) > 0
+        do_wr = bool(v.get(WR_EN, 0)) and len(self.q) < DEPTH
+        self.did_rd = do_rd
+        if do_rd:
+            self.rd_data = self.q.popleft()
+        if do_wr:
+            self.q.append(v[WR_DATA] & MASK)
+
+    def outputs(self, v):
+        n = len(self.q)
+        out = {}
+        if FULL:
+            out[FULL] = int(n == DEPTH)
+        if EMPTY:
+            out[EMPTY] = int(n == 0)
+        if WR_READY:
+            out[WR_READY] = int(n != DEPTH)
+        if COUNT:
+            out[COUNT] = n
+        if FWFT:
+            if RD_VALID:
+                out[RD_VALID] = int(n > 0)
+            if RD_DATA and n > 0:
+                out[RD_DATA] = self.q[0]
+        else:
+            if RD_VALID:
+                out[RD_VALID] = int(self.did_rd)
+            if RD_DATA and self.did_rd:
+                out[RD_DATA] = self.rd_data
+        return out
+
+
+def V(wr=0, data=0, rd=0):
+    return {WR_EN: wr, WR_DATA: data & MASK, RD_EN: rd}
+`;
+  const half = Math.max(1, Math.floor(DEPTH / 2)), n4 = Math.min(4, DEPTH);
+  const body = {
+    'SC-FIFO-001': `    await do_reset(dut, m)\n    for k in range(1, ${n4} + 1):\n        await step(chk, dut, m, V(1, k * 37 + 1))\n    for _ in range(${n4}):\n        await step(chk, dut, m, V(rd=1))\n    await step(chk, dut, m, V())`,
+    'SC-FIFO-002': `    await do_reset(dut, m)\n    for k in range(DEPTH):\n        await step(chk, dut, m, V(1, k + 1))\n    for _ in range(2):\n        await step(chk, dut, m, V(1, MASK))\n    for _ in range(DEPTH):\n        await step(chk, dut, m, V(rd=1))\n    await step(chk, dut, m, V())`,
+    'SC-FIFO-003': `    await do_reset(dut, m)\n    await step(chk, dut, m, V(rd=1))\n    await step(chk, dut, m, V(1, 0x5A))\n    await step(chk, dut, m, V(1, 0xA5))\n    for _ in range(4):\n        await step(chk, dut, m, V(rd=1))\n    await step(chk, dut, m, V())`,
+    'SC-FIFO-004': `    await do_reset(dut, m)\n    for _ in range(${half}):\n        await step(chk, dut, m, V(1, rnd.getrandbits(W)))\n    for _ in range(4):\n        await step(chk, dut, m, V(1, rnd.getrandbits(W), 1))\n    await do_reset(dut, m)\n    await step(chk, dut, m, V(1, 0x3C, 1))\n    await step(chk, dut, m, V(rd=1))\n    await do_reset(dut, m)\n    for _ in range(DEPTH):\n        await step(chk, dut, m, V(1, rnd.getrandbits(W)))\n    await step(chk, dut, m, V(1, MASK, 1))\n    for _ in range(DEPTH):\n        await step(chk, dut, m, V(rd=1))\n    await step(chk, dut, m, V())`,
+    'SC-FIFO-005': `    await do_reset(dut, m)\n    for _ in range(3):\n        await step(chk, dut, m, V(1, rnd.getrandbits(W)))\n    await do_reset(dut, m)\n    await step(chk, dut, m, V(rd=1))\n    await step(chk, dut, m, V())`,
+    'SC-FIFO-006': `    await do_reset(dut, m)\n    for _ in range(3 * DEPTH):\n        await step(chk, dut, m, V(1, rnd.getrandbits(W)))\n        await step(chk, dut, m, V(rd=1))\n    await step(chk, dut, m, V())`,
+    'SC-FIFO-007': `    await do_reset(dut, m)\n    for _ in range(ITERATIONS // 2):\n        await step(chk, dut, m, V(int(rnd.randrange(4) != 0), rnd.getrandbits(W), int(rnd.randrange(4) == 0)))\n    for _ in range(ITERATIONS // 2):\n        await step(chk, dut, m, V(int(rnd.randrange(4) == 0), rnd.getrandbits(W), int(rnd.randrange(4) != 0)))\n    await step(chk, dut, m, V())`
+  };
+  return { kind: 'seq', code, body };
+}
+
 function custom(cfg, model) {
   const outs = model.outputs.map(o => `        ${py(o.name)}: 0,   # TODO expected ${o.name}`).join('\n');
   const code = `
@@ -485,7 +556,7 @@ ${outs}
   return { kind: model.seq ? 'unsupported-seq' : 'comb', code, body };
 }
 
-const GEN = { adder, counter: (c, m) => counter(c, m, false), updown_counter: (c, m) => counter(c, m, true), dff: register, latch: register, shift_register: shift, pipeline, custom };
+const GEN = { adder, counter: (c, m) => counter(c, m, false), updown_counter: (c, m) => counter(c, m, true), dff: register, latch: register, shift_register: shift, pipeline, fifo, custom };
 
 /** cocotb test functions: one per test name, running that test's scenarios in plan order */
 function tests(cfg, model, g) {

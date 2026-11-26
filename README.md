@@ -200,7 +200,7 @@ Icarus 12, Verilator 5.054 with **UVM 2020.3.2**, GHDL, Yosys, SymbiYosys (Z3), 
 **DV: Run Test → UVM testbench → Verilator.** Generated UVM environments compile on Questa, VCS and Verilator; covergroups are guarded with `` `ifndef VERILATOR ``. Each UVM run gets the full dashboard: scoreboard check counts, log, waveform, scenarios and requirements. Covergroup coverage needs Questa or VCS.
 
 ### cocotb (Python) testbench
-**DV: Generate Testbench → cocotb** writes `cocotb/test_<top>.py`, a Python reference model for each template (adder, counter, up/down counter, register, latch, shift register, pipeline; a skeleton for custom), and a Makefile for Icarus or Verilator. **DV: Run Test → cocotb testbench** runs it in the container and opens the dashboard.
+**DV: Generate Testbench → cocotb** writes `cocotb/test_<top>.py`, a Python reference model for each template (adder, counter, up/down counter, register, latch, shift register, pipeline, FIFO; a skeleton for custom), and a Makefile for Icarus or Verilator. **DV: Run Test → cocotb testbench** runs it in the container and opens the dashboard.
 
 ### Dashboard
 - **Overview:** pass rate, coverage rings, a test × seed grid (click a cell), sign-off and testbench-quality panels

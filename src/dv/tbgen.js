@@ -29,8 +29,29 @@ function withDefaults(cfg) {
 }
 
 /** Parse the DUT and resolve port widths for a given parameter override set. */
+/** typographic quotes / dashes pasted from documents (’0, 1’b0, “text”, –) that no simulator accepts: [{line, col, ch, fix}] */
+const SMART = { '‘': "'", '’': "'", '‚': "'", '´': "'", '′': "'", '“': '"', '”': '"', '„': '"', '″': '"', '–': '-', '—': '-', '−': '-', ' ': ' ' };
+function smartChars(text) {
+  const out = [];
+  // comments may contain anything: blank them out (same length, so line/column stay right)
+  const code = String(text).replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, ' ')).replace(/\/\/[^\n]*/g, m => ' '.repeat(m.length));
+  code.split(/\r?\n/).forEach((l, i) => { for (let c = 0; c < l.length; c++) if (SMART[l[c]] != null) out.push({ line: i + 1, col: c + 1, ch: l[c], fix: SMART[l[c]], text: l.trim().slice(0, 90) }); });
+  return out;
+}
+function fixSmartChars(text) { return String(text).replace(/[‘’‚´′“”„″–—− ]/g, c => SMART[c]); }
+
 function resolveDut(cfg, root, params, readFile) {
   const files = cfg.dut.files.map(f => path.resolve(root, f));
+  // fail early, with the exact lines, on characters pasted from a document (the compiler error would be cryptic)
+  const bad = [];
+  for (const f of files) { let t = ''; try { t = readFile(f); } catch (e) { continue; } smartChars(t).forEach(s => bad.push(Object.assign({ file: f }, s))); }
+  if (bad.length) {
+    const e = new Error(`The design contains ${bad.length} typographic character(s) that no simulator accepts (usually pasted from a document or chat):\n` +
+      bad.slice(0, 8).map(s => `  ${path.basename(s.file)}:${s.line}:${s.col}  '${s.ch}' (U+${s.ch.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0')}) should be '${s.fix}'   ${s.text}`).join('\n') +
+      (bad.length > 8 ? `\n  … and ${bad.length - 8} more` : '') + `\nRun "DV: Fix Typographic Quotes in DUT" (or replace them by hand), then run again.`);
+    e.code = 'SMART_QUOTES'; e.files = [...new Set(bad.map(s => s.file))];
+    throw e;
+  }
   let mod = null, file = null;
   for (const f of files) {
     const m = hdl.parseModules(readFile(f)).find(x => x.name === cfg.dut.top);
@@ -55,7 +76,7 @@ function buildModel(cfg, ports, paramValues) {
   if (paramValues) { cfg = Object.assign({}, cfg, { behavior: JSON.parse(JSON.stringify(cfg.behavior || {}), (k, v) => (typeof v === 'string' && /^\$\w+$/.test(v) && paramValues[v.slice(1)] != null ? paramValues[v.slice(1)] : v)) }); }
   const t = TEMPLATES[cfg.template];
   if (!t) throw new Error(`Unknown template '${cfg.template}'. Use one of: ${Object.keys(TEMPLATES).join(', ')}`);
-  const model = t.build(cfg, ports);
+  const model = t.build(cfg, ports, paramValues || {});
   model.checks = model.checks || [];
   const missing = model.inputs.filter(i => !i.name).length + model.checks.filter(c => !c.name).length;
   if (missing) throw new Error(`Could not map all DUT ports for template '${cfg.template}'. Set "ports" in dvflow.json (detected: ${JSON.stringify(model.roles)}).`);
@@ -453,4 +474,4 @@ ${model.step || '    ;'}
   return { seqs: base + '\n' + seqs, tests: testClasses, closure, predict: model.checkCode ? null : predict, modelDecls: model.checkCode ? '' : modelDecls };
 }
 
-module.exports = { withDefaults, resolveDut, buildModel, genTb, genSva, fileList, makefile, wrappers, uvmCustom, DEFAULTS };
+module.exports = { withDefaults, resolveDut, buildModel, genTb, genSva, fileList, makefile, wrappers, uvmCustom, DEFAULTS, smartChars, fixSmartChars };

@@ -320,6 +320,116 @@ function pipeline(cfg, ports) {
   };
 }
 
+/* ====================================================================== synchronous FIFO */
+/* Model: a fixed array with head index and fill level (synthesizable, so the formal harness can use it too).
+ * Read latency: 1 (rd_data/rd_valid registered, the default) or 0 with behavior.fwft = true (first-word fall-through:
+ * rd_data shows the head entry whenever the FIFO is not empty). Writes while full and reads while empty are ignored. */
+function fifo(cfg, ports, params) {
+  const { r, get } = roles(ports, cfg);
+  const b = cfg.behavior || {};
+  get('wr_en', 'input', /^(wr_en|we|wen|write_en|wr|push|winc|wr_req|i_wr_en|wr_valid|in_valid|s_valid)$/i, 1);
+  get('rd_en', 'input', /^(rd_en|re|ren|read_en|rd|pop|rinc|rd_req|i_rd_en|rd_ready|out_ready|m_ready)$/i, 1);
+  get('wr_data', 'input', /^(wr_data|wdata|w_data|din|data_in|wr_din|i_data|in_data|s_data)$/i);
+  get('rd_data', 'output', /^(rd_data|rdata|r_data|dout|data_out|q|rd_dout|o_data|out_data|m_data)$/i);
+  get('full', 'output', /^(full|wfull|fifo_full|o_full|is_full)$/i, 1);
+  get('empty', 'output', /^(empty|rempty|fifo_empty|o_empty|is_empty)$/i, 1);
+  get('wr_ready', 'output', /^(wr_ready|wready|ready|in_ready|s_ready|not_full)$/i, 1);
+  get('rd_valid', 'output', /^(rd_valid|rvalid|valid|out_valid|dout_valid|data_valid|m_valid)$/i, 1);
+  get('count', 'output', /^(count|cnt|level|fill|fill_level|usedw|data_count|used|num|entries|occupancy)$/i);
+  if (!r.wr_data) { const d = ports.find(p => p.dir === 'input' && p.width > 1); if (d) r.wr_data = d.name; }
+  if (!r.rd_data) { const W0 = (P(ports, r.wr_data) || {}).width; const q = ports.find(p => p.dir === 'output' && p.width === W0 && p.name !== r.count); if (q) r.rd_data = q.name; }
+  const W = (P(ports, r.wr_data) || {}).width || 8;
+  const cntW = (P(ports, r.count) || {}).width;
+  const pv = k => (params[k] != null ? Number(params[k]) : null);
+  const aw = ['ADDR_WIDTH', 'AW', 'ADDR_W', 'PTR_WIDTH', 'PTR_W', 'LOG2_DEPTH', 'DEPTH_LOG2'].map(pv).find(v => v != null && v > 0 && v < 20);
+  const DEPTH = Number(b.depth != null ? b.depth : pv('DEPTH') || pv('FIFO_DEPTH') || pv('SIZE') || (aw ? 2 ** aw : cntW ? 2 ** (cntW - 1) : 8));
+  const fwft = !!b.fwft;
+  const AW = Math.max(1, Math.ceil(Math.log2(DEPTH)));
+  const SW = AW + 1;                                       // fill level 0..DEPTH
+  const D = `${SW}'d${DEPTH}`;
+  const inputs = [{ name: r.wr_en, width: 1 }, { name: r.wr_data, width: W }, { name: r.rd_en, width: 1 }];
+  const H = v => `${W}'h${BigInt(v).toString(16)}`;
+  const MAXD = maxOf(W);
+  const checks = [];
+  if (r.full) checks.push({ name: r.full, exp: `(m_size == ${D})` });
+  if (r.empty) checks.push({ name: r.empty, exp: `(m_size == ${SW}'d0)` });
+  if (r.wr_ready) checks.push({ name: r.wr_ready, exp: `(m_size != ${D})` });
+  if (r.count) checks.push({ name: r.count, exp: `${cntW}'(m_size)` });
+  if (fwft) {
+    if (r.rd_valid) checks.push({ name: r.rd_valid, exp: `(m_size != ${SW}'d0)` });
+    if (r.rd_data) checks.push({ name: r.rd_data, exp: 'm_mem[m_head]', guard: `m_size != ${SW}'d0` });
+  } else {
+    if (r.rd_valid) checks.push({ name: r.rd_valid, exp: 'm_do_rd' });
+    if (r.rd_data) checks.push({ name: r.rd_data, exp: 'm_rd_data', guard: 'm_do_rd' });
+  }
+  const reqs = [
+    { id: 'REQ-FIFO-01', text: `Data written with ${r.wr_en} shall be read out with ${r.rd_en} in the same order, each entry exactly once (no loss, no duplication).` },
+    { id: 'REQ-FIFO-02', text: `With ${DEPTH} entries the FIFO shall be full${r.full ? ` (${r.full} = 1)` : ''}${r.wr_ready ? `, ${r.wr_ready} = 0` : ''}; a write while full shall be ignored.` },
+    { id: 'REQ-FIFO-03', text: `With no entries the FIFO shall be empty${r.empty ? ` (${r.empty} = 1)` : ''}; a read while empty shall be ignored${r.rd_valid ? ` (${r.rd_valid} stays 0)` : ''}.` },
+    { id: 'REQ-FIFO-04', text: `A write and a read in the same cycle shall both happen when neither is blocked, leaving the level unchanged${r.count ? ` (${r.count} = number of entries)` : ''}.` },
+    { id: 'REQ-FIFO-05', text: 'Reset shall empty the FIFO.' },
+    { id: 'REQ-FIFO-06', text: fwft ? `${r.rd_data} shall show the oldest entry whenever the FIFO is not empty (first-word fall-through).` : `${r.rd_data} shall present the oldest entry on the cycle after an accepted read${r.rd_valid ? `, with ${r.rd_valid} = 1 for exactly that cycle` : ''}.` },
+    { id: 'REQ-FIFO-07', text: `The read and write pointers shall wrap around after ${DEPTH} entries without corrupting data.` }
+  ];
+  const A = (w, d, rd) => `apply(${w}, ${d}, ${rd});`;
+  const IDLE = A("1'b0", `${W}'d0`, "1'b0");
+  const nSmoke = Math.min(4, DEPTH);
+  const sc = [
+    { id: 'SC-FIFO-001', req: 'REQ-FIFO-01', test: 'smoke', title: 'Write then read', desc: `Write ${nSmoke} values, read them back.`, stimulus: `${nSmoke} writes, ${nSmoke} reads, 1 idle`, expected: 'data out in write order; empty at the end', body: `do_reset(); for (int k = 1; k <= ${nSmoke}; k++) ${A("1'b1", `${W}'(k * 37 + 1)`, "1'b0")} repeat (${nSmoke}) ${A("1'b0", `${W}'d0`, "1'b1")} ${IDLE}` },
+    { id: 'SC-FIFO-002', req: 'REQ-FIFO-02', test: 'boundary', title: 'Fill to full, write while full', desc: `${DEPTH} writes, then 2 more that must be ignored, then drain.`, stimulus: `${DEPTH} writes + 2 writes while full + ${DEPTH} reads`, expected: `full after ${DEPTH} writes; extra writes ignored; the first ${DEPTH} values come out`, body: `do_reset(); for (int k = 0; k < ${DEPTH}; k++) ${A("1'b1", `${W}'(k + 1)`, "1'b0")} repeat (2) ${A("1'b1", H(MAXD), "1'b0")} repeat (${DEPTH}) ${A("1'b0", `${W}'d0`, "1'b1")} ${IDLE}` },
+    { id: 'SC-FIFO-003', req: 'REQ-FIFO-03', test: 'boundary', title: 'Read while empty', desc: 'Read an empty FIFO, write 2, read 4.', stimulus: '1 read on empty, 2 writes, 4 reads', expected: 'reads on empty are ignored; only the 2 entries come out', body: `do_reset(); ${A("1'b0", `${W}'d0`, "1'b1")} ${A("1'b1", H(0x5An & MAXD), "1'b0")} ${A("1'b1", H(0xA5n & MAXD), "1'b0")} repeat (4) ${A("1'b0", `${W}'d0`, "1'b1")} ${IDLE}` },
+    { id: 'SC-FIFO-004', req: 'REQ-FIFO-04', test: 'boundary', title: 'Read and write in the same cycle', desc: 'Simultaneous read/write at a mid level, when empty and when full.', stimulus: `mid level: 4 x (wr+rd); empty: wr+rd; full: wr+rd`, expected: 'level unchanged at mid level; only the write when empty; only the read when full', body: `do_reset(); repeat (${Math.max(1, Math.floor(DEPTH / 2))}) ${A("1'b1", `${W}'(rnd())`, "1'b0")} repeat (4) ${A("1'b1", `${W}'(rnd())`, "1'b1")} do_reset(); ${A("1'b1", H(0x3Cn & MAXD), "1'b1")} ${A("1'b0", `${W}'d0`, "1'b1")} do_reset(); repeat (${DEPTH}) ${A("1'b1", `${W}'(rnd())`, "1'b0")} ${A("1'b1", H(MAXD), "1'b1")} repeat (${DEPTH}) ${A("1'b0", `${W}'d0`, "1'b1")} ${IDLE}` },
+    { id: 'SC-FIFO-005', req: 'REQ-FIFO-05', test: 'reset', title: 'Reset a non-empty FIFO', desc: 'Write 3 entries, reset, then try to read.', stimulus: '3 writes, do_reset(), 1 read, 1 idle', expected: 'empty after reset; the read returns nothing', body: `do_reset(); repeat (3) ${A("1'b1", `${W}'(rnd())`, "1'b0")} do_reset(); ${A("1'b0", `${W}'d0`, "1'b1")} ${IDLE}` },
+    { id: 'SC-FIFO-006', req: 'REQ-FIFO-07', test: 'boundary', title: 'Pointer wrap-around', desc: `Write/read pairs for ${3 * DEPTH} entries so both pointers wrap 3 times.`, stimulus: `${3 * DEPTH} x (write, read)`, expected: 'every value comes back unchanged across the wrap', body: `do_reset(); repeat (${3 * DEPTH}) begin ${A("1'b1", `${W}'(rnd())`, "1'b0")} ${A("1'b0", `${W}'d0`, "1'b1")} end ${IDLE}` },
+    { id: 'SC-FIFO-007', req: 'REQ-FIFO-01', test: 'random', title: 'Seeded random traffic', desc: 'Write-heavy then read-heavy random phases, so the FIFO reaches full and empty.', stimulus: 'ITERATIONS cycles: 1/2 write-heavy, 1/2 read-heavy', expected: 'every read returns the oldest entry; flags and level always match', body: `do_reset(); repeat (ITERATIONS / 2) ${A("1'((rnd() & 3) != 0)", `${W}'(rnd())`, "1'((rnd() & 3) == 0)")} repeat (ITERATIONS / 2) ${A("1'((rnd() & 3) == 0)", `${W}'(rnd())`, "1'((rnd() & 3) != 0)")} ${IDLE}` }
+  ];
+  const wr = `in_${r.wr_en}`, rd = `in_${r.rd_en}`;
+  const bins = [
+    { id: 'BIN-FIFO-FULL', scenario: 'SC-FIFO-002', desc: `level reaches ${DEPTH} (full)`, cond: `m_size == ${D}`, stimulus: `${DEPTH} writes after reset` },
+    { id: 'BIN-FIFO-WRITE_WHEN_FULL', scenario: 'SC-FIFO-002', desc: 'write attempted while full (overflow)', cond: `${wr} && p_size == ${D}`, stimulus: `fill, then ${r.wr_en}=1` },
+    { id: 'BIN-FIFO-READ_WHEN_EMPTY', scenario: 'SC-FIFO-003', desc: 'read attempted while empty (underflow)', cond: `${rd} && p_size == ${SW}'d0`, stimulus: `${r.rd_en}=1 right after reset` },
+    { id: 'BIN-FIFO-DRAIN_TO_EMPTY', scenario: 'SC-FIFO-001', desc: 'last entry read (level 1 -> 0)', cond: `m_do_rd && !m_do_wr && p_size == ${SW}'d1`, stimulus: 'write 1, read 1' },
+    { id: 'BIN-FIFO-RW_SAME_CYCLE', scenario: 'SC-FIFO-004', desc: 'write and read accepted in the same cycle', cond: 'm_do_wr && m_do_rd', stimulus: 'wr+rd at a mid level' },
+    { id: 'BIN-FIFO-RW_WHEN_EMPTY', scenario: 'SC-FIFO-004', desc: 'wr+rd while empty (only the write happens)', cond: `${wr} && ${rd} && p_size == ${SW}'d0`, stimulus: 'wr+rd right after reset' },
+    { id: 'BIN-FIFO-RW_WHEN_FULL', scenario: 'SC-FIFO-004', desc: 'wr+rd while full (only the read happens)', cond: `${wr} && ${rd} && p_size == ${D}`, stimulus: 'fill, then wr+rd' },
+    { id: 'BIN-FIFO-WRAP', scenario: 'SC-FIFO-006', desc: 'write into the last slot (pointer wraps next)', cond: 'm_wrap_now', stimulus: `more than ${DEPTH} write/read pairs` },
+    { id: 'BIN-FIFO-RESET_NONEMPTY', scenario: 'SC-FIFO-005', desc: 'reset while the FIFO holds data', cond: 'reset_nonempty_hit', stimulus: 'write, then do_reset()' }
+  ];
+  const rstOn = cfg.reset.name ? `${cfg.reset.active_low ? '!' : ''}${cfg.reset.name}` : "1'b0";
+  const clkE = `${cfg.clock.edge} ${cfg.clock.name || 'clk'}`;
+  const sva = [
+    r.full && r.empty ? `  a_not_full_and_empty: assert property (@(${clkE}) disable iff (${rstOn}) !(${r.full} && ${r.empty}));` : '',
+    r.wr_ready && r.full ? `  a_ready_is_not_full: assert property (@(${clkE}) disable iff (${rstOn}) ${r.wr_ready} == !${r.full});` : '',
+    r.count ? `  a_level_range: assert property (@(${clkE}) disable iff (${rstOn}) ${r.count} <= ${DEPTH});` : '',
+    r.rd_valid && r.empty && !fwft ? `  a_no_valid_from_empty: assert property (@(${clkE}) disable iff (${rstOn}) ${r.empty} |=> !${r.rd_valid});` : ''
+  ].filter(Boolean).join('\n');
+  return {
+    seq: true, roles: r, width: W, depth: DEPTH, fwft, inputs, outputs: ports.filter(p => p.dir === 'output').map(p => ({ name: p.name, width: p.width })),
+    decl: `  // FIFO reference model: depth ${DEPTH}, ${W}-bit data${fwft ? ', first-word fall-through' : ', registered read'}
+  logic [${W - 1}:0] m_mem [0:${DEPTH - 1}];
+  logic [${AW - 1}:0] m_head;
+  logic [${SW - 1}:0] m_size, p_size;
+  logic [${AW}:0] m_tail;
+  logic [${W - 1}:0] m_rd_data;
+  logic m_do_wr, m_do_rd, m_wrap_now;
+  bit reset_nonempty_hit = 0;`,
+    reset: `    m_head = '0; m_size = '0; p_size = '0; m_rd_data = '0; m_do_wr = 1'b0; m_do_rd = 1'b0; m_wrap_now = 1'b0; m_tail = '0;`,
+    preReset: `    reset_nonempty_hit = (m_size != 0);`,
+    step: `    p_size = m_size;
+    m_do_rd = ${rd} && (m_size != ${SW}'d0);
+    m_do_wr = ${wr} && (m_size != ${D});
+    m_tail = m_head + m_size;
+    if (m_tail >= ${DEPTH}) m_tail = m_tail - ${DEPTH};
+    m_wrap_now = m_do_wr && (m_tail == ${DEPTH - 1});
+    if (m_do_rd) m_rd_data = m_mem[m_head];
+    if (m_do_wr) m_mem[m_tail[${AW - 1}:0]] = in_${r.wr_data};
+    if (m_do_rd) m_head = (m_head == ${AW}'d${DEPTH - 1}) ? '0 : m_head + 1'b1;
+    m_size = m_size + m_do_wr - m_do_rd;`,
+    postBins: '    reset_nonempty_hit = 0;',
+    checks, requirements: reqs, scenarios: sc, bins, sva
+  };
+}
+
 /* ====================================================================== custom (user-supplied model) */
 function custom(cfg, ports) {
   const b = cfg.behavior;
@@ -347,6 +457,7 @@ const TEMPLATES = {
   latch: { label: 'Transparent latch', build: (c, p) => register(Object.assign({}, c, { behavior: Object.assign({}, c.behavior, { kind: 'latch' }) }), p) },
   shift_register: { label: 'Shift register', build: shift },
   pipeline: { label: 'Valid/data pipeline (scoreboard)', build: pipeline },
+  fifo: { label: 'Synchronous FIFO (full/empty/count, overflow/underflow)', build: fifo },
   custom: { label: 'Custom (your reference model)', build: custom }
 };
 
@@ -354,6 +465,7 @@ const TEMPLATES = {
 function guess(mod) {
   const n = mod.name.toLowerCase();
   const names = mod.ports.map(p => p.name.toLowerCase());
+  if (/fifo|queue/.test(n) || (names.includes('full') && names.includes('empty')) || (names.some(x => /^(wr_en|we|push|wr)$/.test(x)) && names.some(x => /^(rd_en|re|pop|rd)$/.test(x)))) return 'fifo';
   if (/add/.test(n) || (names.includes('sum') || names.includes('cout'))) return 'adder';
   if (/shift|sipo|piso|shreg/.test(n)) return 'shift_register';
   if (/latch/.test(n)) return 'latch';

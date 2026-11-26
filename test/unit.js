@@ -190,5 +190,19 @@ tests:
   assert.strictEqual(fs.readFileSync(out).slice(0, 2).toString(), 'PK');
 });
 
+console.log('FIFO template + typographic quotes');
+const T = R('src/dv/templates.js'), TB = R('src/dv/tbgen.js');
+const fifoPorts = [['clk', 'input', 1], ['rst_n', 'input', 1], ['wr_en', 'input', 1], ['wr_data', 'input', 8], ['wr_ready', 'output', 1], ['rd_en', 'input', 1],
+  ['rd_data', 'output', 8], ['rd_valid', 'output', 1], ['full', 'output', 1], ['empty', 'output', 1], ['count', 'output', 4]].map(([name, dir, width]) => ({ name, dir, width }));
+const fcfg = { template: 'fifo', behavior: {}, clock: { name: 'clk', edge: 'posedge' }, reset: { name: 'rst_n', active_low: true } };
+const fm = T.TEMPLATES.fifo.build(fcfg, fifoPorts, { ADDR_WIDTH: 3 });
+t('FIFO detected from the module and ports', () => assert.strictEqual(T.guess({ name: 'fifo_controller', ports: fifoPorts }), 'fifo'));
+t('FIFO depth from ADDR_WIDTH', () => assert.strictEqual(fm.depth, 8));
+t('FIFO depth from the count width when there is no parameter', () => assert.strictEqual(T.TEMPLATES.fifo.build(fcfg, fifoPorts, {}).depth, 8));
+t('FIFO checks every status output', () => assert.deepStrictEqual(fm.checks.map(c => c.name).sort(), ['count', 'empty', 'full', 'rd_data', 'rd_valid', 'wr_ready']));
+t('FIFO rd_data is checked only after an accepted read', () => assert.strictEqual(fm.checks.find(c => c.name === 'rd_data').guard, 'm_do_rd'));
+t('typographic quotes found with line numbers (comments ignored)', () => { const s = TB.smartChars('a\nrd <= ’0;\n// fine ’ in a comment\n'); assert.strictEqual(s.length, 1); assert.strictEqual(s[0].line, 2); });
+t('typographic quotes fixed', () => assert.strictEqual(TB.fixSmartChars('1’b0 “x”'), '1\'b0 "x"'));
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

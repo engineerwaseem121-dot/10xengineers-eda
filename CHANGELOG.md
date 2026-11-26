@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.13.0
+- **FIFO template.** Synchronous FIFOs are now verified out of the box instead of falling back to "custom".
+  - Detected from the module name (`fifo`, `queue`) or its ports (full/empty, wr_en/rd_en).
+  - Depth comes from `ADDR_WIDTH` / `DEPTH` or the count width; `behavior.depth` and `behavior.fwft` (first-word fall-through) can override.
+  - The reference model checks full, empty, wr_ready, count, rd_valid and rd_data. There are 7 scenarios (write/read order, full + write while full, read while empty, read and write in the same cycle when empty, half full and full, pointer wrap, reset, random) and 9 coverage bins.
+  - Works in the SV testbench, UVM (including Verilator), cocotb and formal. Formal runs a bounded check on a small instance of the same RTL (4 entries × 4 bits, 12 cycles), about a minute instead of hours.
+- **Typographic quotes in the DUT** (`’0`, `1’b0`, curly double quotes, en dashes pasted from documents or chat) are reported with file:line:column before anything runs, instead of a cryptic compiler error. The error offers **Fix quotes**, and the new command **DV: Fix Typographic Quotes in DUT** does the same. Comments are ignored, and the fix can be undone.
+
 ## 0.12.4
 - Published under the Marketplace publisher `WaseemAbbas`: the extension ID is `WaseemAbbas.10xengineer-eda`.
 - README: the coverage dashboard, holes, analysis, testplan and waveform/FSM pictures are re-taken from the current build, with numbered labels. The old sidebar picture is replaced by the UVM architecture diagram. The example VCD header carries the current product name.

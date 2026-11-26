@@ -35,6 +35,38 @@ function register(context) {
     const p = await vscode.window.showQuickPick(found.map(d => ({ label: path.basename(d), description: vscode.workspace.asRelativePath(d), d })), { placeHolder: 'DV project' });
     return p && p.d;
   }
+  /** show a DV error; typographic quotes in the DUT get a one-click fix */
+  function fail(prefix, e) {
+    if (e && e.code === 'SMART_QUOTES') {
+      out.appendLine(e.message);
+      vscode.window.showErrorMessage(`${prefix}: the design contains typographic quotes (’ “ ” –) pasted from a document. See the output for the lines.`, 'Fix quotes', 'Show lines').then(a => {
+        if (a === 'Fix quotes') fixQuotes(e.files);
+        if (a === 'Show lines') out.show(true);
+      });
+      return;
+    }
+    vscode.window.showErrorMessage(`${prefix}: ${e && e.message || e}`);
+  }
+  async function fixQuotes(files) {
+    const tbg = require('./tbgen');
+    if (!files || !files.length) {
+      const root = await pickProject(); if (!root) return;
+      try { files = runner.loadConfig(root).dut.files.map(f => path.resolve(root, f)); } catch (e) { vscode.window.showErrorMessage(e.message); return; }
+    }
+    let n = 0;
+    const edit = new vscode.WorkspaceEdit();
+    for (const f of files) {
+      const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(f));
+      const text = doc.getText(), fixed = tbg.fixSmartChars(text);
+      if (fixed === text) continue;
+      n += tbg.smartChars(text).length || 1;
+      edit.replace(doc.uri, new vscode.Range(doc.positionAt(0), doc.positionAt(text.length)), fixed);
+    }
+    if (!n) { vscode.window.showInformationMessage('No typographic quotes found in the DUT files.'); return; }
+    await vscode.workspace.applyEdit(edit);   // undoable with Ctrl+Z
+    for (const f of files) { const d = vscode.workspace.textDocuments.find(x => x.uri.fsPath === f); if (d && d.isDirty) await d.save(); }
+    vscode.window.showInformationMessage(`Replaced ${n} typographic character(s) with plain ' " - in ${files.length} file(s). Run again.`, 'Run Regression').then(a => { if (a) runRegression(); });
+  }
   function trusted() {
     if (vscode.workspace.isTrusted === false) { vscode.window.showErrorMessage('Simulations run only in a trusted workspace (Workspaces: Manage Workspace Trust).'); return false; }
     return true;
@@ -154,7 +186,7 @@ function register(context) {
       mode = m.v;
     }
     let plan;
-    try { plan = runner.plannedFiles(root, cfg, { mode, engineSrc, runtime: process.execPath }); } catch (e) { vscode.window.showErrorMessage('Generation failed: ' + e.message); return; }
+    try { plan = runner.plannedFiles(root, cfg, { mode, engineSrc, runtime: process.execPath }); } catch (e) { fail('Generation failed', e); return; }
     let files = plan.files.filter(f => f.changed && (!onlyPlan || f.path === 'testplan.yaml'));
     if (!files.length) {
       // plan unchanged: still make sure the Excel copy exists
@@ -190,7 +222,7 @@ function register(context) {
     await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title, cancellable: true }, async (prog, token) => {
       try {
         res = await runner.regress(root, Object.assign({ log: s => { out.appendLine(s); if (/^\[(PASS|FAIL|ERROR|TIMEOUT|INCOMPLETE)/.test(s)) prog.report({ message: s.replace(/\s+\(.*$/, '') }); }, token, settings: settings(), timeoutS: cfgv().get('dv.timeoutSeconds', 300) }, opts));
-      } catch (e) { out.appendLine('dvflow: ' + e.message); vscode.window.showErrorMessage('DV run failed: ' + e.message); }
+      } catch (e) { out.appendLine('dvflow: ' + e.message); fail('DV run failed', e); }
     });
     if (!res) return null;
     // compile errors -> editor diagnostics
@@ -299,7 +331,7 @@ function register(context) {
     let res;
     await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: `cocotb on ${s.v}`, cancellable: true }, async (prog, token) => {
       try { res = await cr.run(root, cfg, { sim: s.v, tests: picked.map(p => p.label), seeds, token, log: l => { out.appendLine(l); if (/^\[(PASS|FAIL|ERROR|TIMEOUT)/.test(l)) prog.report({ message: l.replace(/\s+\(.*$/, '') }); } }); }
-      catch (e) { out.appendLine('cocotb: ' + e.message); vscode.window.showErrorMessage('cocotb run failed: ' + e.message); }
+      catch (e) { out.appendLine('cocotb: ' + e.message); fail('cocotb run failed', e); }
     });
     if (!res) return;
     const bad = res.runs.find(r => r.status !== 'PASS');
@@ -329,7 +361,7 @@ function register(context) {
       try {
         res = await uvm.run(root, cfg, { sim: simId, tests: tp.list, seeds, token, cov: covOn, timeoutS: cfgv().get('dv.timeoutSeconds', 300), override: { [simId]: simId === 'questa' && settings().questaBin ? { bin: settings().questaBin } : simId === 'vcs' && settings().vcsBin ? { bin: settings().vcsBin } : {} },
           log: s => { out.appendLine(s); if (/^\[(PASS|FAIL|ERROR|TIMEOUT|BLOCKED|INCOMPLETE)/.test(s)) prog.report({ message: s.replace(/\s+\(.*$/, '') }); } });
-      } catch (e) { out.appendLine('dvflow uvm: ' + e.message); vscode.window.showErrorMessage('UVM run failed: ' + e.message); }
+      } catch (e) { out.appendLine('dvflow uvm: ' + e.message); fail('UVM run failed', e); }
     });
     if (!res) return;
     const bad = res.results.find(r => r.status !== 'PASS');
@@ -627,7 +659,7 @@ const b = document.createElement('button'); b.textContent = 'Open in browser'; b
     let R;
     await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: steps.length === 1 ? { synth: 'Synthesis', gls: 'Gate-level simulation', lec: 'Logic equivalence', formal: 'Formal proof', lint: 'Lint' }[steps[0]] : 'Sign-off check', cancellable: true }, async (prog, token) => {
       try { R = await so.run(root, { steps, glsSim, token, log: s => { out.appendLine(s); const m = /^\[(\w+)\]\s*(.{0,90})/.exec(s); if (m) prog.report({ message: `${m[1]}: ${m[2]}` }); } }); }
-      catch (e) { out.appendLine('sign-off: ' + e.message); vscode.window.showErrorMessage('Sign-off failed: ' + e.message); }
+      catch (e) { out.appendLine('sign-off: ' + e.message); fail('Sign-off failed', e); }
     });
     if (!R) return;
     // refresh the latest dashboard so its Overview shows the sign-off panel
@@ -663,7 +695,7 @@ const b = document.createElement('button'); b.textContent = 'Open in browser'; b
       try {
         res = await require('./mutate').run(root, { sim: simId, max: n.v, token, settings: settings(),
           log: s => { out.appendLine(s); const mm = /^\[(\w+)\s*\] (m\d+)/.exec(s); if (mm) prog.report({ message: `${mm[2]}: ${mm[1].toLowerCase()}` }); } });
-      } catch (e) { out.appendLine('mutation testing: ' + e.message); vscode.window.showErrorMessage('Mutation testing failed: ' + e.message); }
+      } catch (e) { out.appendLine('mutation testing: ' + e.message); fail('Mutation testing failed', e); }
     });
     if (!res) return;
     // refresh the latest dashboard so its Overview shows the "Testbench quality" panel
@@ -757,6 +789,7 @@ const b = document.createElement('button'); b.textContent = 'Open in browser'; b
   reg('tenxDebug.dv.synth', () => signoff(['synth']));
   reg('tenxDebug.dv.gls', () => signoff(['synth', 'lec', 'gls']));
   reg('tenxDebug.dv.formalProve', () => signoff(['formal']));
+  reg('tenxDebug.dv.fixQuotes', () => fixQuotes());
   reg('tenxDebug.dv.generateTestPlan', () => generate(true));
   reg('tenxDebug.dv.generateTestbench', () => generate(false));
   reg('tenxDebug.dv.runTest', runTest);
