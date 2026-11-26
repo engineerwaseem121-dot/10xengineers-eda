@@ -1,0 +1,40 @@
+name: Publish Docker image
+
+# Separate release step: builds container/Dockerfile, smoke-tests it, then pushes
+#   ghcr.io/<owner>/eda-tools:<version from container/image.json>
+# Run it from the Actions tab (Run workflow) or push a tag image-v<version>, e.g. image-v1.0.0.
+# After the first publish: GitHub -> your profile -> Packages -> eda-tools -> Package settings -> Change visibility -> Public.
+on:
+  workflow_dispatch:
+  push:
+    tags: ['image-v*']
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Version
+        id: v
+        run: |
+          echo "version=$(node -p "require('./container/image.json').version")" >> "$GITHUB_OUTPUT"
+          echo "repo=$(node -p "require('./container/image.json').repository")" >> "$GITHUB_OUTPUT"
+      - name: Tag matches image.json
+        if: startsWith(github.ref, 'refs/tags/image-v')
+        run: test "${GITHUB_REF_NAME#image-v}" = "${{ steps.v.outputs.version }}"
+      - name: Build
+        run: docker build -t "${{ steps.v.outputs.repo }}:${{ steps.v.outputs.version }}" --build-arg IMAGE_VERSION="${{ steps.v.outputs.version }}" container
+      - name: Smoke test
+        run: docker run --rm "${{ steps.v.outputs.repo }}:${{ steps.v.outputs.version }}" tenx-smoke
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Refuse to overwrite a published version
+        run: |
+          if docker manifest inspect "${{ steps.v.outputs.repo }}:${{ steps.v.outputs.version }}" >/dev/null 2>&1; then
+            echo "::error::${{ steps.v.outputs.version }} is already published. Bump container/image.json version."; exit 1; fi
+      - name: Push
+        run: docker push "${{ steps.v.outputs.repo }}:${{ steps.v.outputs.version }}"

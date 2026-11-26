@@ -167,8 +167,8 @@ function statusOf(run, build) {
 function nextAction(cls, x) {
   const make = `make retry` + (x.simId ? ` SIM=${x.simId}` : '');
   switch (cls.kind) {
-    case 'installation': return `${sim.fixHint(x.simId)} Then: make doctor SIM=${x.simId} && ${make}`;
-    case 'license': return `License checkout failed during ${cls.stage}. Check the per-user license setting ("DV: Configure Simulators" or the "license" block of ${sim.USER_FILE}) or contact your license administrator. Then: make doctor SIM=${x.simId} && ${make}`;
+    case 'installation': return `${sim.fixHint(x.simId)} Then: make check-tools SIM=${x.simId} && ${make}`;
+    case 'license': return `License checkout failed during ${cls.stage}. Check the per-user license setting ("DV: Configure Simulators" or the "license" block of ${sim.USER_FILE}) or contact your license administrator. Then: make check-tools SIM=${x.simId} && ${make}`;
     case 'unsupported': return `${(x.b.errors[0] || {}).message}. Select another simulator (SIM=...); run "make capabilities" to see which ones support it.`;
     case 'compile': { const e = (x.b.errors || [])[0]; return e && e.file ? `Fix ${e.file}:${e.line} (${e.message}); see build.log line ${e.lineInLog || 1}. Then: ${make}` : `See the first error in build.log. Then: ${make}`; }
     case 'tool': return `The simulator stopped unexpectedly; see sim.log. Then: ${make}`;
@@ -265,8 +265,8 @@ function triage(ctx) {
     hyp.push(['The configured latency is too short, so the drain period ended before the output appeared.', 'Increase behavior.latency in dvflow.json and rerun; if the beat appears later, it is a latency mismatch, not a drop.']);
   } else if (cls.kind === 'compile') hyp.push(['A syntax or elaboration error in the RTL or the generated testbench.', 'The compiler message above names the file and line; fix it and rebuild.']);
   else if (cls.kind === 'timeout') hyp.push(['The DUT or testbench waits on a condition that never happens, or the timeout is too small for the iteration count.', 'Re-run with waves; if activity continues normally, raise options.timeout_ns.']);
-  else if (cls.kind === 'license') hyp.push(['The license server/file is unreachable, invalid for this host, or the required feature is not licensed.', 'Run make doctor SIM=<sim>; it repeats the checkout in a minimal batch simulation and shows the vendor diagnostic.']);
-  else if (cls.kind === 'installation') hyp.push(['The simulator path is not configured or points to the wrong folder.', 'Run make doctor SIM=<sim>; it lists every tool it looked for and where.']);
+  else if (cls.kind === 'license') hyp.push(['The license server/file is unreachable, invalid for this host, or the required feature is not licensed.', 'Run make check-tools SIM=<sim>; it repeats the checkout in a minimal batch simulation and shows the vendor diagnostic.']);
+  else if (cls.kind === 'installation') hyp.push(['The simulator path is not configured or points to the wrong folder.', 'Run make check-tools SIM=<sim>; it lists every tool it looked for and where.']);
   else if (cls.kind === 'tool') hyp.push(['The simulator license or installation is unavailable on this machine.', 'Run "make capabilities" / Show Simulator Capabilities; check the license environment variables.']);
   else hyp.push(['The simulation ended without a result line.', 'Check the end of sim.log for a crash or $finish from DUT code.']);
   hyp.forEach(([h, e], i) => L.push(`${i + 1}. **Hypothesis:** ${h}  \n   *Evidence that would confirm it:* ${e}`));
@@ -297,6 +297,9 @@ async function regress(root, o) {
   const adapter = sim.ADAPTERS[simId];
   if (!adapter) throw Object.assign(new Error(`Unknown simulator '${simId}'. Use one of: ${Object.keys(sim.ADAPTERS).join(', ')}`), { exitCode: 3 });
   const ov = (o.override || {})[simId] || {};
+  // first run without local tools: download the Docker image (once, with progress) before choosing the simulator
+  try { await require('./container').prepare({ sims: [simId], override: o.override, log: s => o.log(s), token: o.token }); }
+  catch (e) { throw Object.assign(new Error('Docker toolchain: ' + e.message), { exitCode: 2 }); }
   const det = sim.detect(simId, ov);
   const log = s => o.log(sim.redact(s, simId));
   const vhdl = (cfg.language || 'sv') === 'vhdl';
@@ -372,10 +375,13 @@ async function regress(root, o) {
         fs.writeFileSync(tbFile, tb.genTb(cfg, model, dut, c.params));
         if (assertions) fs.writeFileSync(path.join(bdir, `sva_${cfg.dut.top}.sv`), tb.genSva(cfg, model, dut));
         // o.compileFiles: compile something else than the RTL (the gate-level netlist) with the RTL's testbench
-        const fl = [...cfg.dut.incdirs.map(d => '+incdir+' + path.resolve(root, d)), ...(o.compileFiles || cfg.dut.files).map(stage), ...(assertions ? [path.join(bdir, `sva_${cfg.dut.top}.sv`)] : []), tbFile].map(x => x.replace(/\\/g, '/'));
+        // paths relative to the project (every compile runs there): a folder name with spaces above the project
+        // then never reaches the simulator's file-list parser, which splits on whitespace
+        const relp = p => { const r = path.relative(root, p); return r && !r.startsWith('..') && !path.isAbsolute(r) ? r : p; };
+        const fl = [...cfg.dut.incdirs.map(d => '+incdir+' + relp(path.resolve(root, d))), ...(o.compileFiles || cfg.dut.files).map(f => relp(stage(f))), ...(assertions ? [relp(path.join(bdir, `sva_${cfg.dut.top}.sv`))] : []), relp(tbFile)].map(x => x.replace(/\\/g, '/'));
         fs.writeFileSync(path.join(bdir, 'files.f'), fl.join('\n') + '\n');
         b.model = model;
-        ctx = { root, outDir: bdir, tbTop: `tb_${cfg.dut.top}`, fileList: path.join(bdir, 'files.f'), t: det.tools, cov, assertions };
+        ctx = { root, outDir: bdir, tbTop: `tb_${cfg.dut.top}`, fileList: path.join(bdir, 'files.f'), t: det.tools, cov, assertions, container: !!det.container };
       }
       for (const cmd of adapter.build(ctx)) {
         b.commands.push(sim.redact(cmdLine(cmd), simId));
@@ -410,7 +416,7 @@ async function regress(root, o) {
     const r = { config: j.config, test: j.test, seed: j.seed, params: b.params, dir: rel(runDir, rdir), waves, status: 'NOT RUN', time: 0, parsed: parseSimLog(''), command: '' };
     if (token && token.isCancellationRequested) { r.status = 'CANCELLED'; runs.push(r); continue; }
     if (b.failed) { r.status = b.blocked ? 'BLOCKED' : b.license ? 'LICENSE' : 'ERROR'; r.stage = b.license ? 'license' : b.failStage; r.reason = b.blocked ? (b.errors[0] || {}).message : b.license ? 'license checkout failed' : 'build failed'; runs.push(r); continue; }
-    const cmd = adapter.run({ buildDir: b.dir, runDir: rdir, plusargs, t: det.tools, cov, test: j.test, waves, vhdl, vhdlStd: cfg.vhdl_std || '08', stopTime: cfg.options.stop_time });
+    const cmd = adapter.run({ root, container: !!det.container, buildDir: b.dir, runDir: rdir, plusargs, t: det.tools, cov, test: j.test, waves, vhdl, vhdlStd: cfg.vhdl_std || '08', stopTime: cfg.options.stop_time });
     r.command = sim.redact(cmdLine(cmd), simId);
     if (det.container) cmd.container = true;
     const res = await runProc(cmd, path.join(rdir, 'sim.log'), (o.timeoutS || 300) * 1000, token, env, simId);

@@ -19,7 +19,7 @@ function register(context) {
   function applySettings() {
     const c = cfg();
     ct.configure({
-      mode: c.get('toolchain.mode', 'auto'), image: c.get('toolchain.image', ct.DEFAULT_IMAGE), engine: c.get('toolchain.engine', 'auto'),
+      mode: c.get('toolchain.mode', 'auto'), image: c.get('toolchain.image', ''), engine: c.get('toolchain.engine', 'auto'), autoUpdate: c.get('toolchain.autoUpdate', true),
       distro: c.get('toolchain.wslDistro', ''), mounts: c.get('toolchain.mounts', []),
       roots: (vscode.workspace.workspaceFolders || []).map(f => f.uri.fsPath)
     });
@@ -68,16 +68,22 @@ function register(context) {
     const image = ct.config().image;
     const im = ct.imageInfo();
     const choices = [
-      { label: '$(tools) Build the image on this machine', description: 'from the Dockerfile shipped with the extension · ~15 min once · ~2.5 GB', v: 'build' },
-      { label: '$(cloud-download) Pull a prebuilt image', description: `docker pull ${image} (needs the image to be published to a registry)`, v: 'pull' }
+      { label: '$(cloud-download) Download the prebuilt image (recommended)', description: `${image} · about 1.2 GB once · smoke-tested before use`, v: 'pull' },
+      { label: '$(tools) Build the image on this machine', description: 'from the Dockerfile shipped with the extension · a few minutes · no registry needed', v: 'build' }
     ];
     if (im.present) choices.unshift({ label: '$(check) Image already present — just check it', description: image, v: 'check' });
     const c = await vscode.window.showQuickPick(choices, { placeHolder: `Open-source toolchain image ${image}` });
     if (!c) return;
     if (c.v !== 'check') {
       const code = await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: c.v === 'build' ? `Building ${image} (Icarus, Verilator, UVM, GHDL, Yosys, SymbiYosys, cocotb)` : `Pulling ${image}`, cancellable: true }, (prog, token) => new Promise(res => {
+        if (c.v === 'pull') {
+          // same path as a first run: progress in the output, one download for all windows, smoke test, fallback
+          ct.ensureImage({ log: l => { out.appendLine(l); const m = /(\d+\/\d+ layers ready.*)$/.exec(l); if (m) prog.report({ message: m[1] }); }, token })
+            .then(() => res(0), err => { out.appendLine('[toolchain] ' + err.message); vscode.window.showErrorMessage('Download failed: ' + err.message); res(1); });
+          return;
+        }
         let p;
-        try { p = c.v === 'build' ? ct.build(dockerDir, d => { out.append(d); const m = /#(\d+) \[[^\]]*?(\d+)\/(\d+)\]/.exec(d); if (m) prog.report({ message: `step ${m[2]}/${m[3]}` }); }) : ct.pull(d => out.append(d)); }
+        try { p = ct.build(dockerDir, d => { out.append(d); const m = /#(\d+) \[[^\]]*?(\d+)\/(\d+)\]/.exec(d); if (m) prog.report({ message: `step ${m[2]}/${m[3]}` }); }); }
         catch (err) { out.appendLine(err.message); return res(-1); }
         token.onCancellationRequested(() => { try { p.kill(); } catch (x) { /* gone */ } });
         p.on('close', res);
@@ -96,19 +102,21 @@ function register(context) {
     out.appendLine('== Open-source toolchain');
     out.appendLine(`mode:      ${s.mode}   (tenxDebug.toolchain.mode: auto = local tools first, container otherwise)`);
     out.appendLine(`engine:    ${s.engine.error ? 'NOT AVAILABLE — ' + s.engine.error : s.engine.label}`);
-    out.appendLine(`image:     ${s.image} ${s.imageInfo.present ? '' : '(not built)'}`);
+    out.appendLine(`image:     ${s.image} ${s.imageInfo.present ? `(version ${s.imageInfo.version || '?'})` : '(not on this machine yet — downloaded on first use)'}`);
+    out.appendLine(`updates:   ${cfg().get('toolchain.autoUpdate', true) ? 'automatic (daily check; switched only after a smoke test)' : 'manual ("Update Simulation Tools")'}`);
     out.appendLine(`container: ${s.container} ${s.running ? '(running)' : '(starts on first use)'}`);
     out.appendLine(`mounted:   ${s.mounts.join('  ·  ')}`);
     Object.entries((s.imageInfo && s.imageInfo.tools) || {}).forEach(([k, v]) => out.appendLine(`  ${k.padEnd(10)} ${v || '—'}`));
     const ok = !s.engine.error && s.imageInfo.present;
-    const acts = ok ? ['Open Terminal in Container', 'Run DV: Doctor', 'Switch Mode', 'Rebuild Image', 'Stop Containers'] : ['Set Up'];
+    const acts = ok ? ['Update Simulation Tools', 'Open Terminal in Container', 'Check Tools', 'Switch Mode', 'Stop Containers'] : ['Set Up'];
     const msg = ok ? `Open-source toolchain ready${afterSetup ? '' : ''}: ${Object.keys(s.imageInfo.tools || {}).length} tools in ${s.image} via ${s.engine.label} (mode ${s.mode}).` : `Open-source toolchain not ready: ${s.engine.error || 'image not built'}`;
     out.show(true);
     const a = await (ok ? vscode.window.showInformationMessage : vscode.window.showWarningMessage)(msg, ...acts);
     if (a === 'Open Terminal in Container') terminal();
-    if (a === 'Run DV: Doctor') vscode.commands.executeCommand('tenxDebug.dv.doctor');
+    if (a === 'Check Tools') vscode.commands.executeCommand('tenxDebug.dv.doctor');
     if (a === 'Switch Mode') switchMode();
-    if (a === 'Rebuild Image' || a === 'Set Up') setup();
+    if (a === 'Set Up') setup();
+    if (a === 'Update Simulation Tools') updateTools(false);
     if (a === 'Stop Containers') stop();
   }
 
@@ -131,7 +139,44 @@ function register(context) {
     if (p) await cfg().update('toolchain.mode', p.label, vscode.ConfigurationTarget.Global);
   }
 
+  /* ------------------------------------------------------------ updates */
+  let updating = null;
+  async function updateTools(background) {
+    if (updating) { if (!background) out.show(true); return updating; }
+    if (!background) out.show(true);
+    out.appendLine('\n== Update Simulation Tools');
+    updating = vscode.window.withProgress({ location: background ? vscode.ProgressLocation.Window : vscode.ProgressLocation.Notification, title: 'EDA tools: checking for an update', cancellable: !background }, async (prog, token) => {
+      try {
+        const r = await ct.update({ log: l => { out.appendLine(l); const m = /(\d+\/\d+ layers ready.*)$/.exec(l); if (m) prog.report({ message: m[1] }); }, token });
+        out.appendLine(`[toolchain] ${ct.describe()}`);
+        if (r.updated) vscode.window.showInformationMessage(`EDA tools updated to ${r.image} (smoke test passed). The next run uses it.`);
+        else if (!background) vscode.window.showInformationMessage(r.reason === 'up to date' ? `EDA tools are up to date (${r.image}).` : `EDA tools not updated: ${r.reason}. Still using ${r.image}.`);
+        refreshBar();
+        return r;
+      } catch (err) {
+        out.appendLine('[toolchain] ' + err.message);
+        if (!background) vscode.window.showErrorMessage('Update Simulation Tools: ' + err.message);
+        return { updated: false, reason: err.message };
+      } finally { updating = null; }
+    });
+    return updating;
+  }
+  // daily, a minute after start-up, when Docker and the image are already there (first-run downloads happen on demand)
+  setTimeout(async () => {
+    if (cfg().get('toolchain.mode', 'auto') === 'local') return;
+    const p = await ct.probeAsync().catch(() => ({ engine: false }));
+    if (!p.engine || !p.image) return;
+    const chk = await ct.checkForUpdate({}).catch(err => ({ error: err.message }));
+    if (!chk.update) return;
+    if (cfg().get('toolchain.autoUpdate', true)) { out.appendLine(`[toolchain] update ${chk.latest} found — downloading in the background`); updateTools(true); }
+    else {
+      const a = await vscode.window.showInformationMessage(`An update of the simulation tools is available: ${chk.current} → ${chk.latest}.`, 'Update Now', 'Later');
+      if (a === 'Update Now') updateTools(false);
+    }
+  }, 60000);
+
   const reg = (id, fn) => sub(vscode.commands.registerCommand(id, fn));
+  reg('tenxDebug.toolchain.update', () => updateTools(false));
   reg('tenxDebug.toolchain.setup', setup);
   reg('tenxDebug.toolchain.status', () => showStatus(false));
   reg('tenxDebug.toolchain.terminal', terminal);

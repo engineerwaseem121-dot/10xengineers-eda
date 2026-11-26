@@ -43,6 +43,11 @@ async function run(root, cfg, o) {
   if (!SIMS.includes(simId)) throw Object.assign(new Error(`cocotb runs on ${SIMS.join(' or ')} here (got '${simId}')`), { exitCode: 3 });
   const dir = path.join(root, 'cocotb');
   if (!fs.existsSync(path.join(dir, 'Makefile'))) throw Object.assign(new Error('cocotb/Makefile not found: generate the cocotb testbench first (DV: Generate Testbench → cocotb).'), { exitCode: 3 });
+  if (!localCocotb()) {
+    // first run without local tools: download the Docker image (once, with progress) before choosing the simulator
+    try { await require('./container').prepare({ need: true, log, token: o.token }); }
+    catch (e) { throw Object.assign(new Error('Docker toolchain: ' + e.message), { exitCode: 2 }); }
+  }
   const w = where(root);
   if (!w.mode) throw Object.assign(new Error(w.reason), { exitCode: 2 });
   const det = w.mode === 'container' ? Object.assign(sim.detect(simId, {}), { source: 'container' }) : sim.detect(simId, {});

@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.16.0
+- **Docker works on the first run for new users.** Install Docker, install the extension, press Run.
+  - The pinned tools image (`ghcr.io/engineerwaseem121-dot/eda-tools:1.0.0`) downloads by itself the first time a tool is needed, with progress in the Output panel. Cancel stops it. Two VS Code windows share one download.
+  - Every image is smoke-tested before it is used (Icarus, Verilator, UVM, Yosys, SymbiYosys, GHDL, cocotb). A failing image is never used; the last working one is kept.
+  - **10xEngineers EDA: Update Simulation Tools** and a daily check (`tenxDebug.toolchain.autoUpdate`) move to newer compatible images, the same way.
+  - Specific messages for: Docker not installed, not running, no permission, offline or proxy, image private or not published, disk full.
+  - Each run logs the image tag and tool versions. Modes: `auto`, `container`, `local`.
+  - Pinned tool versions in `container/image.json`, licences in `container/THIRD_PARTY_NOTICES.md`, smoke test `tenx-smoke` in the image.
+  - CI builds and smoke-tests the image; publishing is a separate workflow (`publish-image.yml`).
+- **Projects in folders with spaces** run in Docker (Icarus and Verilator). Verilator's Makefile cannot build in such folders, so in Docker it builds inside the container.
+- **UVM: the monitor reads reset through its clocking block.** It used to read reset directly, which raced with reset release on the same clock edge: on some simulators (Questa, Verilator) the reference model counted one cycle too early, and every check of a counter failed (`expected count=1, actual count=0`). Regenerate the UVM testbench to get the fix.
+- **Mod-N counters:** `mod10_counter`, `counter_mod6`, `decade_counter` and `bcd_counter` are modelled as counting 0..N-1 (from the module name, when there is no `N` / `MOD` parameter).
+- **DV: Doctor is now DV: Check Tools** (`make check-tools`, `dvflow check-tools`; the old names still work).
+- Fixed: a UVM run on Verilator did not write its dashboard ("cov is not defined").
+- Update checks report an unreachable registry as such, instead of "up to date".
+- README: a 4-step get-started guide, a troubleshooting table, a flow diagram, a Docker first-run diagram, and new pictures (Excel test plan viewer, Docker first run).
+
 ## 0.15.2
 - **UVM waveforms show the interface signals on every simulator.** Questa, VCS and Xcelium do not write SystemVerilog interface contents to a VCD file. The generated `tb_top` now mirrors every interface signal into plain wires under `tb_top.<name>_if_signals`, so they appear in `waves.vcd`. Verilator already dumped the interface, so the mirror is skipped there. Regenerate the UVM testbench (**DV: Generate Testbench → UVM**) to get it.
 - **Split buses are regrouped in the waveform viewer.** When a dump writes a bus as separate bits (`wr_data[7]` … `wr_data[0]`, as Questa does for nets driven through an interface), the viewer shows one bus `wr_data[7:0]` with hex values, as it already did for `rd_data`. Only contiguous bits with no real bus of the same name are merged.

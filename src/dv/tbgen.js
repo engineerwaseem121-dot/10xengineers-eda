@@ -318,7 +318,7 @@ function makefile(cfg) {
 # Tool location:        QUESTA_BIN / VERILATOR_BIN / GHDL_BIN / ICARUS_BIN / VCS_BIN = install dir or bin dir
 #                       (else ~/.dvflow/simulators.json, else PATH). License settings never go in this file.
 # Examples:
-#   make doctor  SIM=questa                      installation + license smoke (+UVM/coverage when enabled)
+#   make check-tools SIM=questa                 installation + license check (+UVM/coverage when enabled)
 #   make build   SIM=questa
 #   make run     SIM=questa TEST=${cfg.dut.top}_smoke SEED=42
 #   make run     TEST=random SEED=1 COUNT=100       100 runs: seed 1, then 99 random seeds
@@ -346,9 +346,9 @@ TOOLS  = $(if $(QUESTA_BIN),--questa-bin "$(QUESTA_BIN)") $(if $(VERILATOR_BIN),
 ARGS   = --sim $(SIM) --waves $(WAVES) --cov $(COV) $(TOOLS)
 CFGARG = $(if $(filter default,$(CONFIG)),,--config $(CONFIG))
 
-.PHONY: doctor build run regress coverage report retry rerun clean capabilities simconfig bugdemo
-doctor:
-\t$(DV) doctor --sim $(SIM) $(TOOLS)
+.PHONY: check-tools doctor build run regress coverage report retry rerun clean capabilities simconfig bugdemo
+check-tools doctor:
+\t$(DV) check-tools --sim $(SIM) $(TOOLS)
 build:
 \t$(DV) build $(ARGS) $(CFGARG)
 run:

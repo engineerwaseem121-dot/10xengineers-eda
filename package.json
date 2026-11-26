@@ -1,8 +1,8 @@
 {
   "name": "10xengineer-eda",
   "displayName": "10xEngineers EDA: Verilog, SystemVerilog & UVM Verification Suite",
-  "description": "All-in-one Verilog, SystemVerilog and UVM design-verification suite. Generates SV, UVM and cocotb testbenches from your RTL and runs regressions on Icarus, Verilator (UVM included, no license), Questa or VCS, with the open-source tools in Docker. Adds a waveform viewer with protocol decoders and X-trace, coverage and test plans, formal, synthesis, gate-level sim and sign-off. One extension instead of ten.",
-  "version": "0.15.2",
+  "description": "All-in-one Verilog, SystemVerilog and UVM design-verification suite. Install Docker and press Run: the open-source tools (Icarus, Verilator with UVM, Yosys, cocotb) download by themselves, no simulator or license needed. Generates SV, UVM and cocotb testbenches from your RTL, runs regressions (Questa and VCS too), and adds a waveform viewer with decoders and X-trace, coverage, Excel test plans, formal, synthesis and sign-off. One extension instead of ten.",
+  "version": "0.16.0",
   "publisher": "WaseemAbbas",
   "repository": { "type": "git", "url": "https://github.com/engineerwaseem121-dot/10xengineers-eda.git" },
   "bugs": { "url": "https://github.com/engineerwaseem121-dot/10xengineers-eda/issues" },
@@ -167,6 +167,7 @@
       { "command": "tenxDebug.dv.formalProve", "title": "DV: Formal Proof (DUT vs reference model, all inputs)", "category": "10xEngineers EDA", "icon": "$(law)" },
       { "command": "tenxDebug.dv.mutate", "title": "DV: Mutation Test (testbench quality)", "category": "10xEngineers EDA", "icon": "$(bug)" },
       { "command": "tenxDebug.toolchain.setup", "title": "Set Up Open-Source Toolchain (Docker)", "category": "10xEngineers EDA", "icon": "$(package)" },
+      { "command": "tenxDebug.toolchain.update", "title": "Update Simulation Tools (Docker image)", "category": "10xEngineers EDA", "icon": "$(cloud-download)" },
       { "command": "tenxDebug.toolchain.status", "title": "Open-Source Toolchain: Status", "category": "10xEngineers EDA", "icon": "$(info)" },
       { "command": "tenxDebug.toolchain.terminal", "title": "Open-Source Toolchain: Open Terminal in Container", "category": "10xEngineers EDA", "icon": "$(terminal)" },
       { "command": "tenxDebug.toolchain.mode", "title": "Open-Source Toolchain: Switch Mode (auto / container / local)", "category": "10xEngineers EDA" },
@@ -192,7 +193,7 @@
       { "command": "tenxDebug.dv.aiSummarize", "title": "DV: Summarize Failure with AI (opt-in)", "category": "10xEngineers EDA" },
       { "command": "tenxDebug.dv.aiDraftScenarios", "title": "DV: Draft Scenarios with AI (opt-in)", "category": "10xEngineers EDA" },
       { "command": "tenxDebug.dv.configureSimulators", "title": "DV: Configure Simulators (path & per-user license)", "category": "10xEngineers EDA", "icon": "$(gear)" },
-      { "command": "tenxDebug.dv.doctor", "title": "DV: Doctor (installation + license smoke)", "category": "10xEngineers EDA", "icon": "$(pulse)" },
+      { "command": "tenxDebug.dv.doctor", "title": "DV: Check Tools (installation + license check)", "category": "10xEngineers EDA", "icon": "$(pulse)" },
       { "command": "tenxDebug.dv.retry", "title": "DV: Retry Last Run (same simulator, test, seed)", "category": "10xEngineers EDA", "icon": "$(debug-restart)" },
       { "command": "tenxDebug.dv.selectSimulator", "title": "DV: Select Simulator", "category": "10xEngineers EDA" },
       { "command": "tenxDebug.dv.runFormal", "title": "DV: Run Formal (SymbiYosys)", "category": "10xEngineers EDA" },
@@ -215,7 +216,7 @@
         "required": ["command"],
         "properties": {
           "project": { "type": "string", "description": "DV project folder (contains dvflow.json)" },
-          "command": { "type": "string", "enum": ["regress", "doctor", "retry"], "description": "dvflow command; regress writes runs/<id>/results.json + results.ndjson which the 10xEngineer RTL Regression Explorer reads" }
+          "command": { "type": "string", "enum": ["regress", "check-tools", "doctor", "retry"], "description": "dvflow command; regress writes runs/<id>/results.json + results.ndjson which the 10xEngineer RTL Regression Explorer reads" }
         }
       },
       {
@@ -345,7 +346,8 @@
         "tenxDebug.logs.maxFileSizeMB": { "type": "number", "default": 50, "description": "Skip link detection for larger logs." },
         "tenxDebug.dv.simulator": { "type": "string", "enum": ["icarus", "questa", "vcs"], "default": "icarus", "description": "Default simulator for the DV flow (lightweight testbenches run on Icarus; UVM needs Questa or VCS)." },
         "tenxDebug.toolchain.mode": { "type": "string", "enum": ["auto", "container", "local"], "enumDescriptions": ["Use locally installed open-source tools when present, the container image otherwise", "Always run Icarus / Verilator / GHDL / Yosys / SymbiYosys from the container image", "Never use the container"], "default": "auto", "description": "Where the open-source tools (Icarus, Verilator, GHDL, Yosys, SymbiYosys, cocotb) come from. Commercial simulators (Questa, VCS) always run locally." },
-        "tenxDebug.toolchain.image": { "type": "string", "default": "10xengineers/eda-tools:1", "description": "Container image with the open-source toolchain. Built locally from the extension's Dockerfile by \"Set Up Open-Source Toolchain\", or pulled from your registry (e.g. ghcr.io/<org>/eda-tools:1)." },
+        "tenxDebug.toolchain.image": { "type": "string", "default": "", "description": "Leave empty (recommended): the extension uses its matching published image (ghcr.io/engineerwaseem121-dot/eda-tools:<version>), downloads it on the first run that needs it, and moves to newer compatible versions only after they pass a smoke test. Set an explicit image (e.g. a private registry mirror) to pin it." },
+        "tenxDebug.toolchain.autoUpdate": { "type": "boolean", "default": true, "description": "Check once a day for a newer compatible tools image and download it in the background. It is used only after its smoke test passes; the previous image stays as a fallback. Off: you are told about updates and run \"Update Simulation Tools\" yourself." },
         "tenxDebug.toolchain.engine": { "type": "string", "enum": ["auto", "docker", "wsl", "podman"], "enumDescriptions": ["Docker on PATH, then Docker inside WSL (Windows), then Podman", "docker CLI (Docker Desktop, Linux, macOS)", "Docker Engine inside WSL (Windows without Docker Desktop)", "Podman"], "default": "auto", "description": "Container engine for the open-source toolchain." },
         "tenxDebug.toolchain.wslDistro": { "type": "string", "default": "", "description": "WSL distribution that runs Docker (empty = the default distribution)." },
         "tenxDebug.toolchain.mounts": { "type": "array", "items": { "type": "string" }, "default": [], "description": "Extra host folders to mount into the toolchain container (workspace folders, the temp folder and ~/.dvflow are always mounted)." },

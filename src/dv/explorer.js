@@ -196,7 +196,7 @@ function register(context, out) {
       for (const [root, pr] of projects) {
         const wrapper = sim.IS_WIN ? path.join(root, 'dvflow.cmd') : path.join(root, 'dvflow.sh');
         if (!fs.existsSync(wrapper)) continue;
-        for (const command of ['regress', 'doctor', 'retry']) {
+        for (const command of ['regress', 'check-tools', 'retry']) {
           const def = { type: 'dvflow', project: path.basename(root), command };
           const t = new vscode.Task(def, vscode.TaskScope.Workspace, `${command} ${pr.cfg.name || pr.cfg.dut.top}`, '10xEngineer RTL Regression', new vscode.ProcessExecution(wrapper, [command, ...(command === 'regress' ? ['--ci', '1'] : [])], { cwd: root }), []);
           t.group = command === 'regress' ? vscode.TaskGroup.Test : undefined;
@@ -237,7 +237,7 @@ function register(context, out) {
         { label: '$(server) Set per-user license server (port@host)…', a: 'srv' },
         { label: '$(discard) Clear license override (inherit the environment)', a: 'clrlic', description: cur.license ? 'override set' : 'inheriting' }] : []),
       { label: '$(discard) Clear folder (use PATH)', a: 'clrbin' },
-      { label: '$(pulse) Run doctor', a: 'doctor' }
+      { label: '$(pulse) Check tools', a: 'doctor' }
     ], { placeHolder: `${pick.label}: folder ${cur.bin || '(PATH)'} · license ${cur.license ? 'per-user override' : 'inherited from the environment'}` });
     if (!act) return;
     const licVar = pick.id === 'vcs' ? 'SNPSLMD_LICENSE_FILE' : 'MGLS_LICENSE_FILE';
@@ -247,7 +247,7 @@ function register(context, out) {
     if (act.a === 'clrlic') delete cur.license;
     if (act.a === 'clrbin') delete cur.bin;
     if (act.a !== 'doctor') { u[pick.id] = cur; sim.saveUser(u); vscode.window.showInformationMessage(`${pick.label} settings saved for your user account only. The extension, make and the CLI all read them.`); }
-    const d = await vscode.window.showInformationMessage(`Run doctor for ${pick.label} now?`, 'Run doctor');
+    const d = await vscode.window.showInformationMessage(`Check tools for ${pick.label} now?`, 'Check Tools');
     if (d || act.a === 'doctor') doctorCmd(pick.id);
   }
   async function doctorCmd(simId) {
@@ -255,8 +255,8 @@ function register(context, out) {
     const cov = await vscode.window.showQuickPick([{ label: 'Installation + license smoke', v: [0, 0] }, { label: '+ UVM', v: [1, 0] }, { label: '+ coverage', v: [0, 1] }, { label: '+ UVM + coverage', v: [1, 1] }], { placeHolder: 'Checks' });
     if (!cov) return;
     out.show(true);
-    out.appendLine(`\n== doctor: ${simId}`);
-    const d = await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: `Doctor: ${simId}` }, async () => sim.doctor(simId, { uvm: !!cov.v[0], coverage: !!cov.v[1] }));
+    out.appendLine(`\n== tools check: ${simId}`);
+    const d = await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: `Checking tools: ${simId}` }, async () => sim.doctor(simId, { uvm: !!cov.v[0], coverage: !!cov.v[1] }));
     for (const s of d.stages) { out.appendLine(`[${s.ok ? 'PASS' : 'FAIL'}] ${s.stage}`); if (s.detail) out.appendLine(s.detail.split('\n').map(x => '       ' + x).join('\n')); if (!s.ok && s.next) out.appendLine('       NEXT: ' + s.next); }
     const bad = d.stages.find(s => !s.ok);
     if (d.ok) { const a = await vscode.window.showInformationMessage(`${d.label} is ready.`, 'Retry last run'); if (a) retryCmd(); }

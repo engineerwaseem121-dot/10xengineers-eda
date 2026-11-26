@@ -19,6 +19,8 @@ const rel = (from, p) => path.relative(from, p).replace(/\\/g, '/');
 async function run(root, o) {
   o = o || {};
   const log = o.log || (() => {});
+  // yosys / sby / verilator lint come from the image when they are not installed locally
+  try { await require('./container').prepare({ tools: ['yosys', 'sby'], sims: ['verilator'], log, token: o.token }); } catch (e) { log('[toolchain] ' + e.message); }
   const cfg = runner.loadConfig(root);
   const steps = (o.steps && o.steps.length ? o.steps : STEPS).filter(s => STEPS.includes(s));
   const id = `${runner.nowId()}-signoff`;

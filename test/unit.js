@@ -322,5 +322,40 @@ t('path links only for files that exist', () => {
 });
 t('non-zip input gives a clear error', () => assert.throws(() => XR.readXlsx(Buffer.from('hello world, not a zip file at all')), /not a zip/));
 
+console.log('Mod-N counters and UVM reset sampling');
+t('mod10_counter counts 0..9 (modulus from the module name)', () => {
+  const cfgOf = top => Object.assign({ template: 'counter', dut: { top } }, ctl);
+  const ports = [port('clk', 'input', 1), port('count', 'output', 4)];
+  assert.strictEqual(T.TEMPLATES.counter.build(cfgOf('mod10_counter'), ports, {}).N, 9);
+  assert.strictEqual(T.TEMPLATES.counter.build(cfgOf('counter_mod6'), ports, {}).N, 5);
+  assert.strictEqual(T.TEMPLATES.counter.build(cfgOf('decade_counter'), ports, {}).N, 9);
+  assert.strictEqual(T.TEMPLATES.counter.build(cfgOf('model_counter'), ports, {}).N, 15, '"model" is not mod-N');
+});
+t('UVM monitor samples reset through the clocking block', () => {
+  const g = R('src/uvmgen.js').generate({ name: 'c', active: true, dut: { name: 'c', ports: [port('clk', 'input', 1), port('reset', 'input', 1), port('count', 'output', 4)] }, clock: 'clk', reset: 'reset', resetActiveLow: false });
+  const files = g.files || g;
+  const txt = (Array.isArray(files) ? files.map(f => f.content || f.text || '') : Object.values(files).map(v => typeof v === 'string' ? v : (v && (v.content || v.text)) || '')).join('\n');
+  assert.ok(/if \(vif\.mon_cb\.reset\) continue;/.test(txt), 'monitor gates on vif.mon_cb.reset');
+  assert.ok(/input count, reset;/.test(txt), 'reset is a mon_cb input');
+});
+
+console.log('Docker toolchain helpers');
+const CT = R('src/dv/container.js');
+t('semver and compatible tags', () => {
+  assert.deepStrictEqual(CT.semver('1.2.3'), [1, 2, 3]); assert.strictEqual(CT.semver('latest'), null);
+  assert.ok(CT.cmpVer('1.10.0', '1.9.9') > 0);
+  assert.ok(CT.compatible(CT.SPEC.compat + '.9.0')); assert.ok(!CT.compatible((+CT.SPEC.compat + 1) + '.0.0')); assert.ok(!CT.compatible('latest'));
+});
+t('pull errors are specific', () => {
+  assert.match(CT.pullError('ghcr.io/x/y:1.0.0', 'denied: denied'), /access denied/);
+  assert.match(CT.pullError('ghcr.io/x/y:1.0.0', 'manifest unknown'), /does not exist/);
+  assert.match(CT.pullError('ghcr.io/x/y:1.0.0', 'dial tcp: lookup ghcr.io: no such host'), /could not reach/);
+  assert.match(CT.pullError('ghcr.io/x/y:1.0.0', 'write /var/lib: no space left on device'), /disk space/);
+});
+if (process.platform === 'win32') t('paths with spaces map to one container path', () => {
+  assert.strictEqual(CT.mapArg('C:\\My Projects\\a b\\x.sv'), '/mnt/c/My Projects/a b/x.sv');
+  assert.strictEqual(CT.mapArg('+incdir+C:\\a b\\inc'), '+incdir+/mnt/c/a b/inc');
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

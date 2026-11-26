@@ -4,6 +4,37 @@
 
 > **No setup.** Icarus, Verilator with UVM, Yosys, SymbiYosys and cocotb come in a ready-made Docker image, so there is nothing else to install and no license is needed for any of the open-source flow. Already have Questa or VCS? They are used too.
 
+## Get started in 4 steps
+
+You need **VS Code (or Cursor) and Docker**, nothing else. No simulator to install, no license.
+
+| Step | Do this | What you see |
+|---|---|---|
+| **1. Install Docker** | **Windows:** [Docker Desktop](https://docs.docker.com/desktop/setup/install/windows-install/), or Docker Engine inside WSL ([how](container/README.md#windows-docker-engine-inside-wsl-no-docker-desktop)). **Linux:** [Docker Engine](https://docs.docker.com/engine/install/), then `sudo usermod -aG docker $USER` and log in again. **macOS:** Docker Desktop. Start it once. | `docker run hello-world` works in a terminal |
+| **2. Install the extension** | VS Code → Extensions (`Ctrl+Shift+X`) → search **10xEngineers EDA** → Install | **EDA: auto** in the status bar |
+| **3. Open your design** | *File → Open Folder* with your `.sv` / `.v` file. Open the file, then `Ctrl+Shift+P` → **DV: Select DUT** → **DV: Generate Testbench → All** | `dvflow.json`, `tb/`, `uvm/`, `cocotb/`, `testplan.yaml`, `testplan.xlsx` |
+| **4. Run** | `Ctrl+Shift+P` → **DV: Run Regression** (or **DV: Run Test**) | **First run only:** the tools image downloads (about 1.2 GB, progress in *Output → 10xEngineers EDA*), is checked, then the tests run. After that, runs start straight away. **DV: Open Dashboard** shows the results. |
+
+![What happens when you press Run in Docker mode](images/docker-first-run.png)
+
+![First run with Docker: download, smoke test, run](images/demo/13-docker-first-run.png)
+
+**If something goes wrong** (the message in the Output panel says which):
+
+| Message | Fix |
+|---|---|
+| *No container engine found* / *Docker is needed* | Install Docker (step 1) and start it |
+| *Docker is installed in WSL but not running* | `wsl -u root systemctl start docker` (or start Docker Desktop) |
+| *needs your user in the "docker" group* | `sudo usermod -aG docker $USER`, then `wsl --shutdown` (Windows) or log out and in (Linux) |
+| *could not reach ghcr.io* | You are offline or behind a proxy/firewall: connect, or set Docker's proxy, and run again |
+| *access denied* / *does not exist* | The image is not published yet: **10xEngineers EDA: Set Up Open-Source Toolchain → Build the image** builds it locally |
+| *not enough disk space* | Free about 3 GB in Docker's storage |
+| A test fails | That is the testbench working: open the dashboard; triage names the output, expected vs actual and the time, and the waveform opens there |
+
+To check everything at once: `Ctrl+Shift+P` → **DV: Check Tools**.
+
+---
+
 ### Why design-verification engineers switch
 
 | You used to… | With 10xEngineers EDA |
@@ -113,6 +144,12 @@ A second small design (an unreset register in a sub-module, fed by a testbench i
 ### 11 · Mutation testing
 ![Mutation testing report](images/demo/11-mutation.png)
 
+### 12 · The Excel test plan, inside VS Code
+![Excel test plan viewer with numbered labels](images/demo/12-excel-testplan.png)
+
+### 13 · First run on a new machine (Docker)
+The same picture as in [Get started](#get-started-in-4-steps): download once, smoke test, run.
+
 #### The design
 ```systemverilog
 // 32-bit write-only register
@@ -145,9 +182,9 @@ endmodule
 
 ## Quick start: the 5-minute demo
 
-1. Install **Docker**. On Windows that's Docker Desktop, or Docker Engine inside WSL; [container/README.md](container/README.md) has both.
-2. Run `Ctrl+Shift+P` → **10xEngineers EDA: Set Up Open-Source Toolchain** → **Build the image**. It takes about a minute, once. The status bar then shows **EDA: auto**.
-3. Run `Ctrl+Shift+P` → **10xEngineers EDA: Create Demo Project** and pick a folder.
+1. Install and start **Docker** (see [Get started](#get-started-in-4-steps)).
+2. Run `Ctrl+Shift+P` → **10xEngineers EDA: Create Demo Project** and pick a folder.
+3. Press the first button of the tour. On the first run the tools image downloads by itself (progress in the Output panel); nothing to build.
 
 The demo opens with a **Demo Tour**: one button per feature, and each step says what it does and why it matters.
 
@@ -172,11 +209,13 @@ The same tour is the first step of **Help → Welcome → 10xEngineers EDA: from
 
 ## Step by step with your own design
 
+![From one RTL file to a verified block](images/flow-diagram.png)
+
 | Step | Do this | You get | Why it matters |
 |---|---|---|---|
 | 1. Describe the DUT | Open your `.sv` file → **DV: Select DUT**. Pick the top module; press **Cancel** at *Dependencies* if the file is self-contained; pick the template marked *suggested from the RTL*. | `dvflow.json`: ports, clock and reset, template, behaviour spec | The expected results come from the spec, not your RTL, so an RTL bug can't hide in the checker |
 | 2. Generate | **DV: Generate Testbench** → **All: SV + UVM + cocotb** | `tb/`, `uvm/`, `cocotb/`, `testplan.yaml` with stable REQ / SC / BIN IDs | Three testbenches and a test plan in seconds, all with the same scenarios |
-| 3. Check the tools | **DV: Doctor** | Installation and license checks per simulator | Problems found before the first run, not during it |
+| 3. Check the tools | **DV: Check Tools** | Installation and license checks per simulator | Problems found before the first run, not during it |
 | 4. Run | **DV: Run Test** (pick **Simple**, **UVM** or **cocotb**, a simulator and the tests) or **DV: Run Regression** (a suite × seeds) | Every run in its own folder with log, waves, `results.json`, `junit.xml`; the test plan and Excel updated | Reproducible by seed; every requirement gets evidence |
 | 5. Review | **DV: Open Dashboard** | Pass rate, coverage, test × seed grid, run panel with log and waveform, traceability, failures, history, compare | One page for status, gaps and changes |
 | 6. Close coverage | Run again with **code coverage** on (Verilator or Questa); read Coverage → *uncovered DUT lines* | Functional bins per test, code coverage of the DUT, uncovered lines with links | Shows exactly which conditions no test reached |
@@ -190,10 +229,39 @@ From a terminal or CI, every step has a command; see [dvflow command line](#dvfl
 
 ---
 
+## Publishing the tools image (maintainers)
+
+Users download the image from GitHub Container Registry. Publishing is a separate, manual release step:
+
+1. Change the tools in [container/Dockerfile](container/Dockerfile) and bump `version` in [container/image.json](container/image.json). Keep the major version for compatible changes; the extension only switches to tags with the same major version.
+2. CI (`.github/workflows/ci.yml`, job **image**) builds the image and runs `tenx-smoke` whenever `container/` changes. Nothing is pushed.
+3. Publish: GitHub → **Actions → Publish Docker image → Run workflow**, or push a tag `image-v<version>` (for example `image-v1.0.0`). The workflow builds, smoke-tests and pushes `ghcr.io/<owner>/eda-tools:<version>`. It refuses to overwrite a published version.
+4. First publish only: GitHub → your profile → **Packages → eda-tools → Package settings → Change visibility → Public**, so users can download it without logging in.
+5. Release the extension: the version in `container/image.json` is the image new installs download.
+
+From your own machine instead of Actions:
+
+```bash
+docker build -t ghcr.io/engineerwaseem121-dot/eda-tools:1.0.0 container
+docker run --rm ghcr.io/engineerwaseem121-dot/eda-tools:1.0.0 tenx-smoke
+echo <a GitHub token with write:packages> | docker login ghcr.io -u engineerwaseem121-dot --password-stdin
+docker push ghcr.io/engineerwaseem121-dot/eda-tools:1.0.0
+```
+
+---
+
 ## Feature guide (new in 0.7 – 0.10)
 
 ### Open-source toolchain in Docker
-Icarus 12, Verilator 5.054 with **UVM 2020.3.2**, GHDL, Yosys, SymbiYosys (Z3), Python with **cocotb** and pyuvm, and make, all in one image (`container/Dockerfile`, about 1.2 GB, built in about a minute). In the default **auto** mode, tools installed on your machine are used first and the container fills the gaps. Every place that runs a tool goes through it: runs, lint, schematics, formal, synthesis. Use **Open Terminal in Container** for a shell with all the tools. Settings: `tenxDebug.toolchain.mode` (`auto` / `container` / `local`), `tenxDebug.toolchain.engine`, `tenxDebug.toolchain.mounts`.
+One pinned image, `ghcr.io/engineerwaseem121-dot/eda-tools:1.0.0`: **Icarus 12, Verilator 5.054 with UVM, Yosys, SymbiYosys (Z3, Boolector), GHDL, Python with cocotb 2.1 and pyuvm, make**. Exact versions are in [container/image.json](container/image.json); licences in [container/THIRD_PARTY_NOTICES.md](container/THIRD_PARTY_NOTICES.md).
+
+- **Downloads by itself** on the first run that needs it, with progress in the Output panel. Two VS Code windows never download it twice, and **Cancel** stops the download.
+- **Checked before use:** every new image runs a smoke test (Icarus, Verilator, UVM, Yosys, SymbiYosys, GHDL, cocotb). If the test fails, the image is not used and the last working one is kept.
+- **Updates:** once a day it looks for a newer compatible tag; **10xEngineers EDA: Update Simulation Tools** does it now. Turn off with `tenxDebug.toolchain.autoUpdate`.
+- **Your files stay where they are:** the project folder is mounted at the same path, so logs, waveforms, `+args`, seeds and paths with spaces all work.
+- **Modes** (`tenxDebug.toolchain.mode`): `auto` (default; installed tools first, Docker fills the gaps), `container` (always Docker), `local` (never Docker).
+- Every run logs the image tag and tool versions; the status bar shows them too. **Open Terminal in Container** gives a shell with all the tools.
+- Command line: `dvflow toolchain status | pull | update | check | smoke`.
 
 ### UVM on Verilator (no license)
 **DV: Run Test → UVM testbench → Verilator.** Generated UVM environments compile on Questa, VCS and Verilator; covergroups are guarded with `` `ifndef VERILATOR ``. Each UVM run gets the full dashboard: scoreboard check counts, log, waveform, scenarios and requirements. Covergroup coverage needs Questa or VCS.
@@ -322,7 +390,7 @@ Choose the simulator in either place:
 Licenses are inherited from your environment by default. **DV: Configure Simulators** stores a *per-user* license file or server in `~/.dvflow/simulators.json`. That value is never written to generated files and is redacted from every log, report and message.
 
 ```
-make doctor  SIM=questa QUESTA_BIN=/path/to/questa      # tools found? + batch smoke sim (license) + UVM/coverage when enabled
+make check-tools SIM=questa QUESTA_BIN=/path/to/questa  # tools found? + batch smoke sim (license) + UVM/coverage when enabled
 make run     SIM=questa TEST=adder_smoke SEED=42
 make run     SIM=verilator TEST=adder_smoke SEED=42
 make run     SIM=ghdl TEST=counter_tb                    # VHDL ("language": "vhdl" in dvflow.json)
@@ -622,7 +690,7 @@ All commands are under **10xEngineers EDA** in the Command Palette (`Ctrl+Shift+
 | Area | Commands |
 |---|---|
 | Start here | Create Demo Project, Open Demo Tour, Set Up Open-Source Toolchain, Open-Source Toolchain: Status / Open Terminal in Container |
-| DV flow | DV: Select DUT, Generate Testbench (SV / UVM / cocotb / All), Generate Test Plan, Doctor, Run Test, Run Regression, Open Dashboard, Rerun Failed Test, Export Test Plan to Excel |
+| DV flow | DV: Select DUT, Generate Testbench (SV / UVM / cocotb / All), Generate Test Plan, Check Tools, Run Test, Run Regression, Open Dashboard, Rerun Failed Test, Export Test Plan to Excel |
 | Sign-off | DV: Sign-off Check, Synthesize DUT, Gate-Level Simulation, Formal Proof |
 | Quality | DV: Mutation Test |
 | Waves / FSM | Open Waveform, Show FSM Diagram, Copy FSM as Mermaid, Rescan FSMs |

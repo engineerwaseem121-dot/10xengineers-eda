@@ -47,3 +47,23 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "$GITHUB_REF_NAME" dist/*.vsix --title "$GITHUB_REF_NAME" --generate-notes
+
+  # Docker image: build + smoke test when container/ changes (no push; publishing is publish-image.yml)
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Did container/ change?
+        id: chg
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || git diff --name-only HEAD~1 HEAD | grep -q '^container/'; then echo "run=1" >> "$GITHUB_OUTPUT"; else echo "run=0" >> "$GITHUB_OUTPUT"; fi
+      - name: Build image
+        if: steps.chg.outputs.run == '1'
+        run: |
+          V=$(node -p "require('./container/image.json').version")
+          docker build -t eda-tools:ci --build-arg IMAGE_VERSION="$V" container
+      - name: Smoke test
+        if: steps.chg.outputs.run == '1'
+        run: docker run --rm eda-tools:ci tenx-smoke

@@ -61,6 +61,9 @@ function generate(opts) {
   const rstActive = activeLow ? '1\'b0' : '1\'b1';
   const rstIdle = activeLow ? '1\'b1' : '1\'b0';
   const inReset = activeLow ? `!vif.${rst}` : `vif.${rst}`;
+  // the monitor reads reset through mon_cb (sampled before the edge, like the outputs): reading vif.reset live races with
+  // the reset release on that same edge, and the reference model would step once more than the DUT
+  const monReset = activeLow ? `!vif.mon_cb.${rst}` : `vif.mon_cb.${rst}`;
   const all = [...inputs, ...outputs];
   const hasHandshake = inputs.some(p => /valid/i.test(p.name)) && outputs.some(p => /ready/i.test(p.name));
   const validSig = hasHandshake ? inputs.find(p => /valid/i.test(p.name)).name : null;
@@ -81,7 +84,7 @@ ${outputs.length ? `    input  ${outputs.map(p => p.name).join(', ')};` : ''}
   // monitor clocking block: samples everything
   clocking mon_cb @(posedge ${clk});
     default input #1step;
-${all.length ? `    input ${all.map(p => p.name).join(', ')};` : ''}
+    input ${[...all.map(p => p.name), rst].join(', ')};
   endclocking
 
 §ifndef VERILATOR
@@ -293,7 +296,7 @@ endclass
   virtual task run_phase(uvm_phase phase);
     forever begin
       @(vif.mon_cb);
-      if (${inReset}) continue;
+      if (${monReset}) continue;
 ${hasHandshake ? `      if (!(vif.mon_cb.${validSig} && vif.mon_cb.${readySig})) continue;   // sample on handshake` : '      // samples every clock; add a qualifier (valid/enable) here if the DUT has one'}
       begin
         ${n}_seq_item it = ${n}_seq_item::type_id::create("it");

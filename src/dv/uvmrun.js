@@ -101,6 +101,9 @@ async function run(root, cfg, o) {
   if (!fs.existsSync(path.join(uvmDir, 'files.f'))) throw Object.assign(new Error('uvm/files.f not found — generate the testbench in "UVM" or "Both" mode first.'), { exitCode: 3 });
   if (!UVM_SIMS.includes(simId)) throw Object.assign(new Error(`'${simId}' cannot run UVM. Use one of: ${UVM_SIMS.join(', ')}`), { exitCode: 3 });
   const ov = (o.override || {})[simId] || {};
+  // first run without local tools: download the Docker image (once, with progress) before choosing the simulator
+  try { await require('./container').prepare({ sims: [simId], override: o.override, log, token: o.token }); }
+  catch (e) { throw Object.assign(new Error('Docker toolchain: ' + e.message), { exitCode: 2 }); }
   const det = sim.detect(simId, ov);
   if (!det.available) throw Object.assign(new Error(`${sim.ADAPTERS[simId].label} unavailable: ${det.reason}. ${sim.fixHint(simId)}`), { exitCode: 2 });
   const env = sim.licenseEnv(simId, ov);
@@ -133,7 +136,7 @@ async function run(root, cfg, o) {
       const why = r.killedBy ? r.killedBy : d ? d.lines[0] : (r.error || `exit code ${r.code}`);
       log(`[build] FAILED: ${why}\n        log: ${buildLog}`);
       for (const t of tests) for (const seed of seeds) results.push({ test: t, seed, status: d && d.kind === 'license' ? 'BLOCKED' : 'ERROR', why: 'build: ' + why, log: buildLog });
-      return finish(root, runBase, runId, simId, det, results, log, null, { cfg, buildLog, commands: plan.build.map(x => [x.cmd, ...x.args].join(' ')), failed: true, started: t0 });
+      return finish(root, runBase, runId, simId, det, results, log, null, { cfg, buildLog, commands: plan.build.map(x => [x.cmd, ...x.args].join(' ')), failed: true, started: t0, cov });
     }
   }
   log('[build] ok');
@@ -159,7 +162,7 @@ async function run(root, cfg, o) {
     coverage = require('./qcov').collect({ tools: det.tools, ucdbs: results.map(r => r.ucdb).filter(Boolean), outDir: path.join(runBase, 'coverage'), env, dutModules, dutFiles: cfg.dut.files, log, code: cov.code, functional: cov.functional });
     if (coverage.state !== 'reported') log(`[coverage] ${coverage.state}: ${coverage.message}`);
   }
-  return finish(root, runBase, runId, simId, det, results, log, coverage, { cfg, buildLog, commands: plan.build.map(x => [x.cmd, ...x.args].join(' ')), failed: false, started: t0 });
+  return finish(root, runBase, runId, simId, det, results, log, coverage, { cfg, buildLog, commands: plan.build.map(x => [x.cmd, ...x.args].join(' ')), failed: false, started: t0, cov });
 }
 
 function finish(root, runBase, runId, simId, det, results, log, coverage, ctx) {
@@ -181,7 +184,7 @@ function finish(root, runBase, runId, simId, det, results, log, coverage, ctx) {
         return { test: r.test, seed: r.seed, dir: path.relative(runBase, dir).replace(/\\/g, '/'), status: r.status, time: Math.round((r.ms || 0) / 10) / 100, parsed,
           firstError: r.status === 'PASS' ? null : (parsed.firstError || r.why), command: `dvflow uvm --sim ${simId} --tests ${r.test} --seed ${r.seed}`, waves: fs.existsSync(path.join(dir, 'waves.vcd')) };
       });
-      const pub = ext.publish(root, ctx.cfg, { kind: 'uvm', runId, simId, det, started: ctx.started ? new Date(ctx.started).toISOString() : null, runs, codeCov: coverage && coverage.state === 'reported' ? coverage : null, covModes: cov || { code: false, functional: false },
+      const pub = ext.publish(root, ctx.cfg, { kind: 'uvm', runId, simId, det, started: ctx.started ? new Date(ctx.started).toISOString() : null, runs, codeCov: coverage && coverage.state === 'reported' ? coverage : null, covModes: ctx.cov || { code: false, functional: false },
         build: { failed: ctx.failed, errors: [], commands: ctx.commands, log: path.relative(runBase, ctx.buildLog).replace(/\\/g, '/') } });
       res.report = pub.report;
       log(`   dashboard:       ${pub.report}`);

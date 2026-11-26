@@ -18,6 +18,14 @@ const os = require('os');
 const path = require('path');
 const cp = require('child_process');
 
+/** path relative to the compile directory when it is inside it (keeps spaces above the project out of tool arguments) */
+// Verilator obj_dir. Its generated Makefile refuses any absolute path with a space (make -C cwd), so in the container
+// such projects compile on the container filesystem (/tmp/tenx-obj/<hash>) and the binary runs there.
+const vobj = (root, dir, container) => {
+  if (container && /s/.test(path.resolve(dir))) return { ctr: true, dir: '/tmp/tenx-obj/' + require('crypto').createHash('sha1').update(path.resolve(dir)).digest('hex').slice(0, 12) };
+  return { ctr: false, dir: relRoot(root, path.join(dir, 'obj_dir')) };
+};
+const relRoot = (root, p) => { const r = path.relative(root, p); return r && !r.startsWith('..') && !path.isAbsolute(r) ? r.split(path.sep).join('/') : p; };
 const IS_WIN = process.platform === 'win32';
 const exe = n => (IS_WIN ? n + '.exe' : n);
 const USER_FILE = path.join(os.homedir(), '.dvflow', 'simulators.json');
@@ -195,9 +203,10 @@ const VERILATOR = {
   },
   build(ctx) {
     const v = ctx.t[IS_WIN ? 'verilator_bin' : 'verilator'];
-    return [{ stage: 'compile', cmd: v, args: ['--binary', '--timing', '-j', '0', '-Wno-fatal', '-Wno-lint', '-Wno-style', '--trace', ...(ctx.cov ? ['--coverage'] : []), '--top-module', ctx.tbTop, '-Mdir', path.join(ctx.outDir, 'obj_dir'), '-o', 'sim', '-f', ctx.fileList], cwd: ctx.root }];
+    const obj = vobj(ctx.root, ctx.outDir, ctx.container);
+    return [...(obj.ctr ? [{ stage: 'compile', cmd: 'ctr:mkdir', args: ['-p', obj.dir], cwd: ctx.root }] : []), { stage: 'compile', cmd: v, args: ['--binary', '--timing', '-j', '0', '-Wno-fatal', '-Wno-lint', '-Wno-style', '--trace', ...(ctx.cov ? ['--coverage'] : []), '--top-module', ctx.tbTop, '-Mdir', obj.dir, '-o', 'sim', '-f', ctx.fileList], cwd: ctx.root }];   // relative -Mdir: Verilator's generated Makefile cannot handle spaces in the obj_dir path
   },
-  run(ctx) { return { stage: 'simulate', cmd: path.join(ctx.buildDir, 'obj_dir', exe('sim')), args: ctx.plusargs, cwd: ctx.runDir }; },
+  run(ctx) { const obj = vobj(ctx.root, ctx.buildDir, ctx.container); return { stage: 'simulate', cmd: obj.ctr ? obj.dir + '/sim' : path.join(ctx.buildDir, 'obj_dir', exe('sim')), args: ctx.plusargs, cwd: ctx.runDir }; },
   smoke(dir) {
     fs.writeFileSync(path.join(dir, 'doctor.sv'), 'module dvflow_doctor; initial begin #1; $display("DVFLOW_DOCTOR_OK"); $finish; end endmodule\n');
     const v = t => t[IS_WIN ? 'verilator_bin' : 'verilator'];
@@ -333,7 +342,7 @@ function doctor(simId, opts) {
       const res = run(cmd, args, { cwd: dir, env: licenseEnv(simId, opts.override), timeout: 180000, container: !!r.container });
       const text = redact(res.out + (res.error ? '\n' + res.error : ''), simId);
       const dg = diagnose(text);
-      if (dg && dg.kind === 'license') { ok = false; detail = `stage: ${s.stage}\n` + dg.lines.join('\n'); next = `License checkout failed (${lic.length ? 'license set via ' + lic.join(', ') : 'no license variable set'}). Fix the per-user license setting ("DV: Configure Simulators" or ~/.dvflow/simulators.json "license") or contact your license administrator, then run: make doctor SIM=${simId}`; break; }
+      if (dg && dg.kind === 'license') { ok = false; detail = `stage: ${s.stage}\n` + dg.lines.join('\n'); next = `License checkout failed (${lic.length ? 'license set via ' + lic.join(', ') : 'no license variable set'}). Fix the per-user license setting ("DV: Configure Simulators" or ~/.dvflow/simulators.json "license") or contact your license administrator, then run: make check-tools SIM=${simId}`; break; }
       if (res.code !== 0 || (s.expect && !s.expect.test(res.out))) { ok = false; detail = `stage: ${s.stage} (exit ${res.code})\n` + text.split(/\r?\n/).filter(Boolean).slice(-8).join('\n'); next = `The ${s.stage} step of the smoke test failed; see the output above.`; break; }
       detail += `${s.stage}: ok\n`;
     }

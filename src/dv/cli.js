@@ -17,7 +17,7 @@
  *   dvflow signoff  [--steps lint,synth,lec,gls,formal] [--gls-sim icarus]   synthesis + gate-level sim + equivalence + formal proof
  *   dvflow mutate   [--sim icarus] [--max 40] [--tests a,b]   mutation testing: how many planted bugs does the testbench catch?
  *   dvflow toolchain [status|build|stop]   open-source tools in Docker  ·  --toolchain local|auto|container on any command
- *   dvflow doctor   [--sim questa] [--uvm 1] [--coverage 1] [--questa-bin <dir>]   installation + license smoke checks
+ *   dvflow check-tools [--sim questa] [--uvm 1] [--coverage 1] [--questa-bin <dir>]   installation + license smoke checks
  *   dvflow retry    [--run latest] [--sim s]  re-run the non-passing jobs with the same simulator, parameters and seeds
  *   dvflow simconfig [--sim questa --bin <dir> --license-file <f>]   per-user settings (~/.dvflow/simulators.json)
  *   --<sim>-bin <dir> on any command: installation or bin directory for that simulator (questa, verilator, ghdl, icarus, vcs)
@@ -104,20 +104,20 @@ async function main() {
       log(require('./report').write(root, res));
       return 0;
     }
-    case 'doctor': {
+    case 'check-tools': case 'doctor': {
       const sim = require('./sim');
       let simId = a.sim;
       let uvm = a.uvm === '1', coverage = a.coverage === '1' || a.cov === '1';
       try { const cfg = runner.loadConfig(root); simId = simId || cfg.simulator; uvm = uvm || cfg.mode === 'uvm' || cfg.mode === 'both'; coverage = coverage || !!cfg.options.code_coverage; } catch (e) { /* doctor works outside a project too */ }
       simId = simId || 'icarus';
-      log(`== doctor: ${simId}${uvm ? ' +uvm' : ''}${coverage ? ' +coverage' : ''} (per-user settings: ${sim.USER_FILE})`);
+      log(`== tools check: ${simId}${uvm ? ' +uvm' : ''}${coverage ? ' +coverage' : ''} (per-user settings: ${sim.USER_FILE})`);
       const d = sim.doctor(simId, { override: override[simId], uvm, coverage });
       for (const s of d.stages) {
         log(`[${s.ok ? 'PASS' : 'FAIL'}] ${s.stage}`);
         if (s.detail) log(s.detail.split('\n').map(x => '       ' + x).join('\n'));
         if (!s.ok && s.next) log('       NEXT: ' + s.next);
       }
-      log(d.ok ? `doctor: ${simId} is ready` : `doctor: ${simId} is NOT ready (see NEXT above)`);
+      log(d.ok ? `tools check: ${simId} is ready` : `tools check: ${simId} is NOT ready (see NEXT above)`);
       return d.ok ? 0 : 2;
     }
     case 'retry': {
@@ -181,9 +181,14 @@ async function main() {
       return r.survived ? 1 : 0;
     }
     case 'toolchain': {
-      // dvflow toolchain [status|build|stop]   open-source tools in the 10xEngineers EDA container image
+      // dvflow toolchain [status|pull|update|check|smoke|build|stop]   open-source tools in the 10xEngineers EDA container image
       const sub = a._[1] || 'status';
       if (sub === 'stop') { log(`removed ${container.stopAll()} toolchain container(s)`); return 0; }
+      // pull: download the image now (what a first run does) · update: newer compatible tag, smoke test, switch · check: list
+      if (sub === 'pull') { try { const r = await container.ensureImage({ log, token }); log(r.fallback ? `using ${r.image} (fallback)` : `ready: ${r.image}`); log(container.describe()); return r.fallback ? 2 : 0; } catch (e) { log('error: ' + e.message); return 2; } }
+      if (sub === 'update') { try { const r = await container.update({ log, token }); log(r.updated ? `updated: ${r.from} -> ${r.image}` : `not updated (${r.reason}); using ${r.image}`); return r.updated || r.reason === 'up to date' ? 0 : 2; } catch (e) { log('error: ' + e.message); return 2; } }
+      if (sub === 'check') { const r = await container.checkForUpdate({ force: true }); log(JSON.stringify(r, null, 2)); return r.error ? 2 : 0; }
+      if (sub === 'smoke') { const r = await container.smoke(container.config().image, log, token); log(r.ok ? 'SMOKE PASS' : 'SMOKE FAIL'); return r.ok ? 0 : 2; }
       if (sub === 'build') {
         const ctx = path.resolve(__dirname, '..', '..', 'container');
         if (!fs.existsSync(path.join(ctx, 'Dockerfile'))) { log('Dockerfile not found at ' + ctx); return 3; }

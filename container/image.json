@@ -1,0 +1,26 @@
+{
+  "repository": "ghcr.io/engineerwaseem121-dot/eda-tools",
+  "version": "1.0.0",
+  "compat": "1",
+  "note": "The extension uses <repository>:<version> by default and only switches to newer tags with the same major version (compat) after they pass the image's smoke test. Bump 'version' (and the Dockerfile ARG IMAGE_VERSION) for every published image; bump the major version when the image layout changes incompatibly.",
+  "tools": {
+    "ubuntu": "24.04 (ubuntu@sha256:562111b88caa79c71391c0c4d3c2114a7d5c35915c20561fd893cb1e07929e6b)",
+    "iverilog": "12.0-2build2",
+    "verilator": "v5.054 (verilator/verilator@sha256:da7845c38c2ab84133661a1b1e2d717d028fe0bc629cc06c77bb80571e610448)",
+    "uvm": "chipsalliance/uvm-verilator 5d72b6618acfddece7f09382a032ccbc05862fdc (UVM 1800.2-2020.3.x kit for Verilator)",
+    "ghdl": "4.1.0+dfsg-0ubuntu2.1",
+    "yosys": "0.33-5build2",
+    "symbiyosys": "yosys-0.33 tag of YosysHQ/sby",
+    "z3": "4.8.12-3.1build1",
+    "boolector": "1.5.118.6b56be4.121013-1.3",
+    "gtkwave": "3.3.116-1build2",
+    "make": "4.3-4.1build2",
+    "g++": "4:13.2.0-7ubuntu1",
+    "python3": "3.12.3-0ubuntu2.1",
+    "cocotb": "2.1.0",
+    "cocotb-bus": "0.3.0",
+    "pyuvm": "5.0.0",
+    "pytest": "9.2.0",
+    "pyyaml": "6.0.4"
+  }
+}

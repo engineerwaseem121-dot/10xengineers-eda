@@ -48,14 +48,16 @@ Install it from <https://docs.docker.com/desktop/>. Companies with more than 250
 
 Install Docker Engine (<https://docs.docker.com/engine/install/>) or Podman, and add yourself to the `docker` group.
 
-## 2. Set up the image
+## 2. The image
 
-In VS Code, run **10xEngineers EDA: Set Up Open-Source Toolchain (Docker)**. You can either:
+Nothing to do: the first run that needs a tool downloads `ghcr.io/engineerwaseem121-dot/eda-tools:<version>` (the version pinned in [image.json](image.json)), smoke-tests it and uses it. Progress is in *Output → 10xEngineers EDA*. **10xEngineers EDA: Update Simulation Tools** checks for a newer compatible image.
 
-- **Build the image** on your machine from the Dockerfile in this folder. This takes about 15 minutes, once, and uses about 2.5 GB.
-- **Pull a prebuilt image**, if your team publishes one. Set `tenxDebug.toolchain.image` to its name first, for example `ghcr.io/<org>/eda-tools:1`.
+Other options, in **10xEngineers EDA: Set Up Open-Source Toolchain (Docker)**:
 
-From a terminal, the same thing is `dvflow toolchain build`, and `dvflow toolchain status` checks it.
+- **Build the image** on your machine from the Dockerfile in this folder (about 15 minutes, once, about 2.5 GB), for example when you are offline.
+- **Use your own image:** set `tenxDebug.toolchain.image`, for example `ghcr.io/<org>/eda-tools:1.2.0`. The extension then neither updates nor replaces it.
+
+From a terminal: `dvflow toolchain pull` (download now), `dvflow toolchain update`, `dvflow toolchain smoke`, `dvflow toolchain status`, `dvflow toolchain build`.
 
 ## 3. Use it
 

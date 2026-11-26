@@ -106,6 +106,12 @@ function counter(cfg, ports, updown, params) {
     const mod = ['MOD', 'MODULUS', 'MODULO'].map(pv).find(v => v != null);
     if (n != null) b.N = n; else if (mod != null && mod > 0) b.N = mod - 1;
   }
+  // modulus from the module name: mod10_counter / counter_mod6 / decade_counter / bcd_counter count 0..M-1
+  if (b.N == null) {
+    const nm = String(cfg.dut && cfg.dut.top || '');
+    const m = /(?:^|_)mod_?(\d+)(?=$|_)/i.exec(nm);
+    if (m && +m[1] > 1) b.N = +m[1] - 1; else if (/decade|bcd/i.test(nm)) b.N = 9;
+  }
   get('en', 'input', /^(en|enable|ce|cnt_en|count_en|inc)$/i, 1);
   get('up', 'input', /^(up|dir|up_dn|updown|up_down)$/i, 1);
   get('load', 'input', /^(load|ld|set)$/i, 1);
