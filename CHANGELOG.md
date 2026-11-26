@@ -1,6 +1,7 @@
 # Changelog
 
 ## 0.12.4
+- Published under the Marketplace publisher `WaseemAbbas`: the extension ID is `WaseemAbbas.10xengineer-eda`.
 - README: the coverage dashboard, holes, analysis, testplan and waveform/FSM pictures are re-taken from the current build, with numbered labels. The old sidebar picture is replaced by the UVM architecture diagram. The example VCD header carries the current product name.
 - CI: one small job (syntax check, unit tests, Icarus end-to-end with the Excel test plan, `.vsix` package). Tags `v*` publish a GitHub Release.
 
