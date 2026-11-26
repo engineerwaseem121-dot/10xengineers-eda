@@ -1,4 +1,4 @@
-# 10xEngineers EDA: the design-verification suite for VS Code
+# 10xEngineers EDA: the design-verification suite
 
 **One extension instead of ten.** Write RTL, generate testbenches, run regressions, debug waveforms, close coverage and sign off a block without leaving VS Code (or Cursor), on Windows and Linux.
 
