@@ -1,0 +1,14 @@
+# kept out of the published .vsix
+.git/**
+.github/**
+.gitignore
+.gitattributes
+.vscode/**
+.backup-*/**
+dist/**
+test/**
+build-vsix.ps1
+**/*.vsix
+**/node_modules/**
+**/obj_dir/**
+**/__pycache__/**
