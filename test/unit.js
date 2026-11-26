@@ -364,5 +364,35 @@ t('waves: default is "only failing runs"; 1 = all; 0 = none', () => {
   assert.strictEqual(W('1'), 'all'); assert.strictEqual(W(1), 'all'); assert.strictEqual(W('0'), 'none'); assert.strictEqual(W(0), 'none'); assert.strictEqual(W('fail'), 'fail');
 });
 
+console.log('Project layout');
+t('UVM files go to tb / agent / sequences / env / tests / scripts', () => {
+  const L = R('src/dv/layout.js');
+  const s = f => L.uvmSub(f, 'fifo');
+  assert.strictEqual(s('tb_top.sv'), 'tb'); assert.strictEqual(s('fifo_if.sv'), 'tb');
+  assert.strictEqual(s('fifo_driver.sv'), 'agent'); assert.strictEqual(s('fifo_seq_item.sv'), 'agent');
+  assert.strictEqual(s('fifo_sequences.sv'), 'sequences');
+  assert.strictEqual(s('fifo_scoreboard.sv'), 'env'); assert.strictEqual(s('fifo_coverage.sv'), 'env');
+  assert.strictEqual(s('fifo_tests.sv'), 'tests'); assert.strictEqual(s('run.do'), 'scripts');
+  assert.strictEqual(s('fifo_pkg.sv'), ''); assert.strictEqual(s('files.f'), '');
+});
+t('generated UVM environment uses the folders and a matching files.f', () => {
+  const g = R('src/uvmgen.js').generate({ name: 'c', active: true, features: { questa: true, coverage: true, scoreboard: true }, dut: { name: 'c', ports: [port('clk', 'input', 1), port('rst_n', 'input', 1), port('d', 'input', 4), port('q', 'output', 4)] } });
+  const k = Object.keys(g.files);
+  ['tb/tb_top.sv', 'tb/c_if.sv', 'agent/c_driver.sv', 'sequences/c_sequences.sv', 'env/c_env.sv', 'tests/c_tests.sv', 'scripts/run.do', 'c_pkg.sv', 'files.f'].forEach(f => assert.ok(k.includes(f), f + ' missing: ' + k.join(',')));
+  assert.ok(/\+incdir\+agent/.test(g.files['files.f']) && /^tb\/tb_top\.sv$/m.test(g.files['files.f']));
+  const flat = Object.keys(R('src/uvmgen.js').generate({ name: 'c', active: true, layout: 'flat', dut: { name: 'c', ports: [port('clk', 'input', 1), port('q', 'output', 4)] } }).files);
+  assert.ok(flat.includes('c_driver.sv') && flat.includes('tb_top.sv'));
+});
+t('test plan path: testplan/ for new projects, the old root file until it is migrated', () => {
+  const L = R('src/dv/layout.js'), os = require('os'), fs = require('fs');
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'lay-'));
+  assert.strictEqual(L.planYaml(d), path.join(d, 'testplan', 'testplan.yaml'));
+  fs.writeFileSync(path.join(d, 'testplan.yaml'), 'x');
+  assert.strictEqual(L.planYaml(d), path.join(d, 'testplan.yaml'));
+  fs.mkdirSync(path.join(d, 'testplan')); fs.writeFileSync(path.join(d, 'testplan', 'testplan.yaml'), 'y');
+  assert.ok(L.retireOldPlan(d)); assert.ok(!fs.existsSync(path.join(d, 'testplan.yaml')));
+  assert.strictEqual(L.planYaml(d), path.join(d, 'testplan', 'testplan.yaml'));
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

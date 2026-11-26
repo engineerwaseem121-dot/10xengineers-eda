@@ -613,19 +613,23 @@ ${all.map(p => `    ${decl(p).replace(/^logic/, 'wire')} ${p.name} = ${n}_vif.${
 endmodule
 `);
 
-  /* ---------------- source list */
+  /* ---------------- source list (paths relative to uvm/; compile from uvm/) */
   const rtl = (opts.rtlFiles || []).map(p => p.replace(/\\/g, '/'));
+  const flat = opts.layout === 'flat';
+  const at = (sub, file) => (flat || !sub ? file : sub + '/' + file);
   files['files.f'] = [
     '// 10xEngineers EDA source list — edit freely, or use "10xEngineers EDA: Add Files to Source List"',
+    '// paths are relative to the uvm/ folder: compile from there (vlog -f files.f)',
     '+incdir+.',
+    ...(flat ? [] : ['+incdir+tb', '+incdir+agent', '+incdir+sequences', '+incdir+env', '+incdir+tests']),
     ...[...new Set(rtl.map(p => p.includes('/') ? '+incdir+' + p.slice(0, p.lastIndexOf('/')) : null).filter(Boolean))],
     '// ---- RTL',
     ...rtl,
     '// ---- verification',
-    `${n}_if.sv`,
+    at('tb', `${n}_if.sv`),
     `${n}_pkg.sv`,
-    ...(f.assertions && dutName ? [`${n}_assertions.sv`] : []),
-    'tb_top.sv',
+    ...(f.assertions && dutName ? [at('tb', `${n}_assertions.sv`)] : []),
+    at('tb', 'tb_top.sv'),
     ''
   ].join('\n');
 
@@ -641,14 +645,16 @@ if {[info exists env(SEED)]} { set SEED $env(SEED) } else { set SEED random }
 set UVMINC ""
 if {[info exists env(UVM_HOME)]} { set UVMINC "+incdir+$env(UVM_HOME)/src" }
 set HERE [file dirname [file normalize [info script]]]
-if {[info exists env(WORKLIB)]} { set WORK $env(WORKLIB) } else { set WORK $HERE/work }
+# the source list is relative to the uvm/ folder (one level up from scripts/)
+if {[file exists $HERE/files.f]} { set UVMDIR $HERE } else { set UVMDIR [file dirname $HERE] }
+if {[info exists env(WORKLIB)]} { set WORK $env(WORKLIB) } else { set WORK $UVMDIR/work }
 
 if {![info exists env(NOCOMPILE)]} {
   set CWD [pwd]
-  cd $HERE
-  if {[file exists work]} { vdel -lib work -all }
-  vlib work
-  eval vlog -sv -timescale 1ns/1ps +acc=npr -cover bcesft $UVMINC -f files.f
+  cd $UVMDIR
+  if {[file exists $WORK]} { vdel -lib $WORK -all }
+  vlib $WORK
+  eval vlog -sv -timescale 1ns/1ps +acc=npr -cover bcesft $UVMINC -work $WORK -f files.f
   cd $CWD
 }
 if {$MODE eq "compile"} { quit -f }
@@ -718,23 +724,29 @@ echo Coverage report: coverage_%TEST%.txt
 
 ${dutName ? `DUT: \`${dutName}\` · clock \`${clk}\` · reset \`${rst}\` (active-${activeLow ? 'low' : 'high'}) · ${inputs.length} inputs · ${outputs.length} outputs` : 'Template environment (no DUT parsed).'}
 
-| File | Purpose |
+| Folder / file | Contents |
 |---|---|
-| ${n}_if.sv | Interface with driver/monitor clocking blocks |
-| ${n}_cfg.sv | Agent config: \`is_active\`, \`has_coverage\`, \`has_checks\` |
-| ${n}_seq_item.sv | Transaction |
-| ${n}_sequences.sv | random / corner / idle sequences |
-| ${n}_driver.sv / ${n}_monitor.sv | Pin-level driver and monitor |
-${f.coverage ? `| ${n}_coverage.sv | Functional coverage (covergroup per port) |\n` : ''}${f.scoreboard ? `| ${n}_scoreboard.sv | Scoreboard + reference-model hook \`predict()\` |\n` : ''}${f.assertions && dutName ? `| ${n}_assertions.sv | SVA bound into the DUT |\n` : ''}| ${n}_tests.sv | base / random / closure tests |
-| tb_top.sv | Clock, reset, DUT, config_db, VCD dump |
-| files.f | Source list (RTL + TB) |
-${f.questa ? '| run.do / Makefile / run.sh / run.bat | Questa scripts (Windows + Linux) |\n' : ''}
+| ${at('tb', '')}tb_top.sv | Clock, reset, DUT, config_db, waveform dump with \`+WAVES\` |
+| ${at('tb', '')}${n}_if.sv | Interface with driver/monitor clocking blocks |
+${f.assertions && dutName ? `| ${at('tb', '')}${n}_assertions.sv | SVA bound into the DUT |\n` : ''}| ${at('agent', '')}${n}_cfg.sv | Agent config: \`is_active\`, \`has_coverage\`, \`has_checks\` |
+| ${at('agent', '')}${n}_seq_item.sv | Transaction |
+| ${at('agent', '')}${n}_sequencer.sv / _driver.sv / _monitor.sv / _agent.sv | Sequencer, pin-level driver and monitor, agent |
+| ${at('sequences', '')}${n}_sequences.sv | Scenario sequences: reset, directed, corner, random |
+| ${at('env', '')}${n}_env.sv | Environment |
+${f.scoreboard ? `| ${at('env', '')}${n}_scoreboard.sv | Scoreboard + reference model \`predict()\` |\n` : ''}${f.coverage ? `| ${at('env', '')}${n}_coverage.sv | Functional coverage (covergroups) |\n` : ''}| ${at('tests', '')}${n}_tests.sv | base / scenario / random / closure tests |
+| ${n}_pkg.sv | Package: includes all of the above |
+| files.f | Source list (RTL + testbench), relative to this folder |
+${f.questa ? `| ${at('scripts', '')}run.do / Makefile / run.sh / run.bat | Questa scripts (Windows + Linux) |\n` : ''}
 ## Run
 - In VS Code / Cursor: **10xEngineers EDA: Run Questa Simulation**. It compiles, runs, writes the UCDB, produces a report and opens the coverage dashboard.
-- CLI: \`vsim -c -do "do run.do ${n}_closure_test"\` then \`vcover report -details -output cov.txt cov_${n}_closure_test_<seed>.ucdb\`
+- CLI: \`vsim -c -do "do ${at('scripts', '')}run.do ${n}_closure_test"\` then \`vcover report -details -output cov.txt cov_${n}_closure_test_<seed>.ucdb\`
 - Passive agent: add \`+PASSIVE\` to the vsim command line, or set \`cfg.is_active = UVM_PASSIVE\` in a derived test.
 `;
   for (const k of Object.keys(files)) files[k] = files[k].replace(/[—–]/g, '-').replace(/→/g, '->');
+  if (!flat) {
+    let L; try { L = require('./dv/layout'); } catch (e) { L = require('./engine/layout'); }   // extension / vendored .dvflow copy
+    for (const k of Object.keys(files)) { const sub = L.uvmSub(k, n); if (sub) { files[sub + '/' + k] = files[k]; delete files[k]; } }
+  }
   return { files, warnings, summary: { clk, rst, activeLow, inputs: inputs.map(p => p.name), outputs: outputs.map(p => p.name), handshake: hasHandshake } };
 }
 

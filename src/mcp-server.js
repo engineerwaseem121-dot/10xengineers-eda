@@ -85,7 +85,7 @@ const TOOLS = [
       const r = uvmgen.generate({ name: a.name, dut, active: !a.passive, features: { coverage: true, scoreboard: true, assertions: true, questa: true }, rtlFiles: [path.relative(out, path.resolve(a.dut_file)).replace(/\\/g, '/')] });
       fs.mkdirSync(out, { recursive: true });
       const written = [];
-      for (const [f, c] of Object.entries(r.files)) { const p = path.join(out, f); if (!fs.existsSync(p)) { fs.writeFileSync(p, c); written.push(f); } }
+      for (const [f, c] of Object.entries(r.files)) { const p = path.join(out, f); fs.mkdirSync(path.dirname(p), { recursive: true }); if (!fs.existsSync(p)) { fs.writeFileSync(p, c); written.push(f); } }
       return { out_dir: out, written, warnings: r.warnings, summary: r.summary };
     }
   }

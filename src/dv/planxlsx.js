@@ -6,7 +6,8 @@ const xlsx = require('../xlsx');
 const plan = require('./testplan');
 
 function write(root, res) {
-  const tpText = fs.existsSync(path.join(root, 'testplan.yaml')) ? fs.readFileSync(path.join(root, 'testplan.yaml'), 'utf8') : '';
+  const L = require('./layout');
+  const tpText = fs.existsSync(L.planYaml(root)) ? fs.readFileSync(L.planYaml(root), 'utf8') : '';
   const authored = plan.parsePlan(tpText);
   const runDir = path.join(root, 'runs', res.meta.runId);
   const abs = p => path.join(runDir, p);
@@ -42,7 +43,7 @@ function write(root, res) {
         ['Project folder', root],
         ['Run folder', runDir],
         ['HTML dashboard', abs('report/index.html')],
-        ['Test plan (YAML)', path.join(root, 'testplan.yaml')],
+        ['Test plan (YAML)', require('./layout').planYaml(root)],
         ['Results (JSON)', abs('results.json')],
         ['JUnit', abs('junit.xml')],
         ...(res.runs.some(r => r.failureDir) ? [['Failure folders', abs('failures')]] : [])
@@ -78,7 +79,8 @@ function write(root, res) {
     name: 'Failures', columns: [{ header: 'Test' }, { header: 'Seed', type: 'num' }, { header: 'Config' }, { header: 'Classification', width: 26 }, { header: 'First error', width: 60 }, { header: 'triage.md', width: 80 }, { header: 'Rerun', width: 70 }],
     rows: fails.map(r => [r.test, r.seed, r.config, (r.classification || {}).label || r.status, r.firstError || '', abs(path.join(r.failureDir, 'triage.md')), abs(path.join(r.failureDir, process.platform === 'win32' ? 'rerun.cmd' : 'rerun.sh'))])
   });
-  const out = path.join(root, 'testplan.xlsx');
+  const out = require('./layout').planXlsx(root);
+  fs.mkdirSync(path.dirname(out), { recursive: true });
   try { fs.writeFileSync(out, xlsx.build(sheets, { goal: 100, title: 'Test plan ' + res.meta.dut })); }
   catch (e) { fs.writeFileSync(path.join(runDir, 'testplan.xlsx'), xlsx.build(sheets, { goal: 100 })); return path.join(runDir, 'testplan.xlsx'); }   // workbook open in Excel: write a copy in the run folder
   return out;
@@ -98,7 +100,7 @@ function latestResults(root) {
  * otherwise each scenario shows the latest result where there is one, and NOT RUN elsewhere.
  */
 function writePlan(root) {
-  const tpPath = path.join(root, 'testplan.yaml');
+  const tpPath = require('./layout').planYaml(root);
   if (!fs.existsSync(tpPath)) return null;
   const p = plan.parsePlan(fs.readFileSync(tpPath, 'utf8'));
   const reqs = p.requirements || [], scs = p.scenarios || [], chks = p.checkers || [], bins = p.coverage_bins || [], tests = p.tests || [];
@@ -149,7 +151,8 @@ function writePlan(root) {
       rows: tests.map(t => [t.id, t.name || '', arr(t.scenarios)])
     }
   ];
-  const out = path.join(root, 'testplan.xlsx');
+  const out = require('./layout').planXlsx(root);
+  fs.mkdirSync(path.dirname(out), { recursive: true });
   try { fs.writeFileSync(out, xlsx.build(sheets, { goal: 100, title: 'Test plan ' + (p.dut || '') })); return out; }
   catch (e) {
     // open in Excel (file locked): leave it and write next to it

@@ -442,8 +442,9 @@ function register(context, h) {
     for (const [f, content] of Object.entries(res.files)) {
       const p = path.join(outDir, f);
       if (fs.existsSync(p) && !overwrite) continue;
+      fs.mkdirSync(path.dirname(p), { recursive: true });
       fs.writeFileSync(p, content, 'utf8');
-      if (f === 'run.sh') { try { fs.chmodSync(p, 0o755); } catch (e) { /* windows */ } }
+      if (path.basename(f) === 'run.sh') { try { fs.chmodSync(p, 0o755); } catch (e) { /* windows */ } }
       written++;
     }
     out.appendLine(`[UVM] Generated ${written} file(s) in ${outDir}`);

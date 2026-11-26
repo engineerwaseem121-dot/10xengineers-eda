@@ -141,12 +141,15 @@ async def do_reset(dut, m):
         await DRIVE_EDGE(getattr(dut, CLK))
         getattr(dut, RST).value = 1 - RST_ACTIVE
     m.reset()
+    m._at_drive_edge = True   # reset ends on a drive edge: the next step drives here (a free-running DUT counts on the next active edge)
 
 
 async def step(chk, dut, m, vals):
     """Drive away from the active edge, let the DUT and the model clock, then compare."""
     clk = getattr(dut, CLK)
-    await DRIVE_EDGE(clk)
+    if not getattr(m, "_at_drive_edge", False):
+        await DRIVE_EDGE(clk)
+    m._at_drive_edge = False
     for k, v in vals.items():
         getattr(dut, k).value = v
     await ACTIVE_EDGE(clk)

@@ -97,7 +97,7 @@ async function run(root, cfg, o) {
     const pub = require('./external').publish(root, cfg, { kind: 'cocotb', runId, simId, det, started: new Date(t0).toISOString(), runs, build: { failed: runs.length > 0 && runs.every(r => r.status === 'ERROR'), errors: [], commands, log: runs[0] ? runs[0].dir + '/sim.log' : null } });
     report = pub.report;
     log(`   dashboard:       ${report}`);
-    log(`   test plan:       ${path.join(root, 'testplan.yaml')}`);
+    log(`   test plan:       ${require('./layout').planYaml(root)}`);
     if (pub.result.testplanXlsx) log(`   test plan Excel: ${pub.result.testplanXlsx}`);
     else if (pub.result.testplanError) log(`   # testplan.xlsx not written: ${pub.result.testplanError}`);
   } catch (e) { log('# dashboard not written: ' + e.message); }

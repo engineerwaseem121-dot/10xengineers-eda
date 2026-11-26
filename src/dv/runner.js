@@ -64,16 +64,17 @@ function plannedFiles(root, cfg, opts) {
   add('dvflow.cmd', w.cmd);
   add('dvflow.sh', w.sh, { mode: 0o755 });
   // test plan: never overwritten — merged so engineer-authored content survives
-  const tpPath = path.join(root, 'testplan.yaml');
-  if (model) add('testplan.yaml', plan.mergePlan(fs.existsSync(tpPath) ? read(tpPath) : null, cfg, model));
+  const tpPath = require('./layout').planYaml(root);   // an old-layout plan (project root) is merged and moved to testplan/
+  if (model) add('testplan/testplan.yaml', plan.mergePlan(fs.existsSync(tpPath) ? read(tpPath) : null, cfg, model));
   // vendored engine so make / CI work without the extension
   if (opts.engineSrc) {
-    const list = ['dv/cli.js', 'dv/runner.js', 'dv/tbgen.js', 'dv/templates.js', 'dv/sim.js', 'dv/testplan.js', 'dv/report.js', 'dv/planxlsx.js', 'dv/formal.js', 'dv/uvmrun.js', 'dv/qcov.js', 'dv/container.js', 'dv/vcov.js', 'dv/mutate.js', 'dv/external.js', 'dv/cocotbgen.js', 'dv/cocotbrun.js', 'dv/tools.js', 'dv/synth.js', 'dv/formalgen.js', 'dv/signoff.js', 'dv/demo.js', 'dv/seeds.js', 'hdlparse.js', 'fsm.js', 'uvmgen.js', 'vplan.js', 'coverage.js', 'xlsx.js'];
+    const list = ['dv/cli.js', 'dv/runner.js', 'dv/tbgen.js', 'dv/templates.js', 'dv/sim.js', 'dv/testplan.js', 'dv/report.js', 'dv/planxlsx.js', 'dv/formal.js', 'dv/uvmrun.js', 'dv/qcov.js', 'dv/container.js', 'dv/vcov.js', 'dv/mutate.js', 'dv/external.js', 'dv/cocotbgen.js', 'dv/cocotbrun.js', 'dv/tools.js', 'dv/synth.js', 'dv/formalgen.js', 'dv/signoff.js', 'dv/demo.js', 'dv/seeds.js', 'dv/layout.js', 'hdlparse.js', 'fsm.js', 'uvmgen.js', 'vplan.js', 'coverage.js', 'xlsx.js'];
     for (const f of list) {
       const src = path.join(opts.engineSrc, f);
       if (fs.existsSync(src)) add('.dvflow/' + (f.startsWith('dv/') ? 'engine/' + f.slice(3) : f), read(src), { engine: true });
     }
   }
+  files.root = root; files.top = cfg.dut.top;
   return { files, model, dut };
 }
 
@@ -84,9 +85,19 @@ function writeFiles(files) {
     fs.writeFileSync(f.abs, f.content);
     if (f.mode) { try { fs.chmodSync(f.abs, f.mode); } catch (e) { /* windows */ } }
   }
+  const L = require('./layout');
+  // project root and DUT name: from the list itself, so a filtered copy of it (the extension's pick list) works too
+  const any = files.find(f => f.abs && f.path);
+  const root = files.root || (any ? any.abs.slice(0, any.abs.length - any.path.length).replace(/[\\/]+$/, '') : null);
+  const pkg = files.find(f => /^uvm\/[^/]+_pkg\.sv$/.test(f.path));
+  const top = files.top || (pkg ? pkg.path.slice(4, -7) : null);
+  if (root) {
+    if (L.retireOldPlan(root)) files.movedPlan = true;                                         // old layout: plan now in testplan/
+    if (top && files.some(f => f.changed && /^uvm\//.test(f.path))) files.retiredUvm = L.retireFlatUvm(root, top);
+  }
   // the Excel test plan is created together with testplan.yaml (and refreshed whenever the plan is regenerated)
-  const tp = files.find(f => f.changed && f.path === 'testplan.yaml');
-  if (tp) { try { const x = require('./planxlsx').writePlan(path.dirname(tp.abs)); if (x) files.xlsx = x; } catch (e) { files.xlsxError = e.message; } }
+  const tp = files.find(f => f.changed && f.path === 'testplan/testplan.yaml');
+  if (tp) { try { const x = require('./planxlsx').writePlan(root || path.dirname(path.dirname(tp.abs))); if (x) files.xlsx = x; } catch (e) { files.xlsxError = e.message; } }
 }
 
 /* ------------------------------------------------------------------ processes */
@@ -267,7 +278,7 @@ function triage(ctx) {
     if (cfg.template === 'adder' && x.signal === (model.roles.cout || '')) hyp.push(['The carry-out is computed from the wrong bit or without the carry-in.', `Expected carry ${x.expected} for inputs ${x.inputs}; compare the RTL carry expression with a+b${model.roles.cin ? '+cin' : ''} at width W+1.`]);
     if (cfg.template === 'adder' && x.signal === model.roles.sum) hyp.push(['The sum logic is wrong for these operands (e.g. an XOR instead of an add, or a truncated operand).', `Re-run SC exhaustive with waves; every failing operand pair should share the faulty bit position.`]);
     hyp.push(['The RTL does not implement the approved behaviour for this scenario.', `Re-run with waves (rerun.cmd --waves) and inspect ${x.signal} at t=${x.time} ns against the reference model.`]);
-    hyp.push(['The behaviour spec in dvflow.json (reference model) disagrees with the intended design.', 'Confirm the requirement in testplan.yaml; if the spec is wrong, edit "behavior" and regenerate the testbench.']);
+    hyp.push(['The behaviour spec in dvflow.json (reference model) disagrees with the intended design.', 'Confirm the requirement in testplan/testplan.yaml; if the spec is wrong, edit "behavior" and regenerate the testbench.']);
     if (model.seq) hyp.push(['Latency or reset timing differs from the configuration.', 'If the actual value equals the expected value of the previous/next cycle, adjust latency/clock edge in dvflow.json.']);
   } else if (cls.kind === 'missing') {
     hyp.push(['The DUT drops a transaction (for example when beats arrive back-to-back).', 'Check the waveform for an input beat without a matching output beat; the scenario that dropped it is recorded above.']);
@@ -512,7 +523,7 @@ async function regress(root, o) {
   fs.writeFileSync(path.join(runDir, 'results.ndjson'), result.runs.map(r => JSON.stringify({ suite: meta.suite, test: r.test, config: r.config, seed: r.seed, status: r.status, stage: r.stage || null, duration_s: r.time, message: r.firstError || null, simulator: simId, failure_dir: r.failureDir || null })).map(l => sim.redact(l, simId)).join('\n') + '\n');
   fs.writeFileSync(path.join(runDir, 'junit.xml'), sim.redact(junit(result), simId));
   // test plan: rewrite only the generated results block
-  const tp = path.join(root, 'testplan.yaml');
+  const tp = require('./layout').planYaml(root);
   if (fs.existsSync(tp) && !quiet) fs.writeFileSync(tp, plan.updateResults(read(tp), result, rel(root, runDir)));   // bug demos / mutants never touch the real plan
   if (!o.mutant) require('./report').write(root, JSON.parse(resultText));
   scrubDir(runDir, simId);   // simulators write their own files too (e.g. Questa 'transcript'): keep licence values out of all of them
@@ -522,7 +533,7 @@ async function regress(root, o) {
     fs.writeFileSync(path.join(root, 'runs', 'latest.txt'), runId + '\n');
   }
   log(`== ${result.totals.pass}/${result.totals.runs} passed · functional coverage ${result.coverage.functional.pct == null ? 'n/a' : result.coverage.functional.pct + '%'} · report: ${rel(root, path.join(runDir, 'report', 'index.html'))}`);
-  result.paths = { project: root, run: runDir, report: path.join(runDir, 'report', 'index.html'), testplanYaml: path.join(root, 'testplan.yaml'), testplanXlsx: xlsxPath, failures: runs.some(r => r.failureDir) ? path.join(runDir, 'failures') : null };
+  result.paths = { project: root, run: runDir, report: path.join(runDir, 'report', 'index.html'), testplanYaml: require('./layout').planYaml(root), testplanXlsx: xlsxPath, failures: runs.some(r => r.failureDir) ? path.join(runDir, 'failures') : null };
   log(`   run folder:      ${result.paths.run}`);
   log(`   dashboard:       ${result.paths.report}`);
   log(`   test plan:       ${result.paths.testplanYaml}${xlsxPath ? '\n   test plan Excel: ' + xlsxPath : ''}`);
@@ -585,7 +596,8 @@ function covergroupRow(meta, caps) {
 
 function assemble(root, cfg, meta, runs, builds, model) {
   const waivers = loadWaivers(root);
-  const tpText = fs.existsSync(path.join(root, 'testplan.yaml')) ? read(path.join(root, 'testplan.yaml')) : '';
+  const tpFile = require('./layout').planYaml(root);
+  const tpText = fs.existsSync(tpFile) ? read(tpFile) : '';
   const tp = plan.parsePlan(tpText);
   const binDefs = (model ? model.bins : []).map(b => ({ id: b.id, scenario: b.scenario, desc: b.desc, cond: b.cond, stimulus: b.stimulus }));
   const scenarios = (model ? model.scenarios : []).map(s => ({ id: s.id, req: s.req, title: s.title, test: s.test, desc: s.desc, stimulus: s.stimulus, expected: s.expected }));

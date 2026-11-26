@@ -164,7 +164,27 @@ function register(context) {
     fs.mkdirSync(root, { recursive: true });
     fs.writeFileSync(target, text);
     await vscode.window.showTextDocument(vscode.Uri.file(target));
-    vscode.window.showInformationMessage(`Proposed DUT configuration for ${mod.name} (${detected}). Review clock edge, reset polarity/cycles, latency, enable and "behavior" (the expected results), then run "DV: Generate Testbench".`, 'Generate Testbench').then(x => { if (x) generate(); });
+    // RTL loose in the project folder: offer the standard layout (design/ next to tb/, uvm/, testplan/)
+    const loose = cfg.dut.files.filter(f => !/[\\/]/.test(f));
+    const acts = ['Generate Testbench'].concat(loose.length ? ['Move RTL to design/'] : []);
+    vscode.window.showInformationMessage(`Proposed DUT configuration for ${mod.name} (${detected}). Review clock edge, reset polarity/cycles, latency, enable and "behavior" (the expected results), then run "DV: Generate Testbench".${loose.length ? ' Tip: keep the RTL in design/ (next to tb/, uvm/ and testplan/).' : ''}`, ...acts).then(async x => {
+      if (x === 'Move RTL to design/') { await moveRtlToDesign(root, target, loose); generate(); }
+      else if (x) generate();
+    });
+  }
+
+  /** move RTL files from the project folder to design/ (open editors follow) and update dvflow.json */
+  async function moveRtlToDesign(root, cfgFile, names) {
+    const we = new vscode.WorkspaceEdit();
+    for (const n of names) {
+      if (fs.existsSync(path.join(root, 'design', n))) { vscode.window.showWarningMessage(`design/${n} already exists; ${n} was not moved.`); continue; }
+      we.renameFile(vscode.Uri.file(path.join(root, n)), vscode.Uri.file(path.join(root, 'design', n)), { overwrite: false });
+    }
+    if (!(await vscode.workspace.applyEdit(we))) { vscode.window.showErrorMessage('Could not move the RTL to design/.'); return; }
+    const c = JSON.parse(fs.readFileSync(cfgFile, 'utf8'));
+    c.dut.files = c.dut.files.map(f => (names.includes(f) && fs.existsSync(path.join(root, 'design', f)) ? 'design/' + f : f));
+    fs.writeFileSync(cfgFile, JSON.stringify(c, null, 2) + '\n');
+    out.appendLine(`[layout] moved ${names.join(', ')} to design/ and updated dvflow.json`);
   }
 
   /* ---------------------------------------------------------------- 2/3. Generate testbench / test plan (with preview) */
@@ -187,11 +207,11 @@ function register(context) {
     }
     let plan;
     try { plan = runner.plannedFiles(root, cfg, { mode, engineSrc, runtime: process.execPath }); } catch (e) { fail('Generation failed', e); return; }
-    let files = plan.files.filter(f => f.changed && (!onlyPlan || f.path === 'testplan.yaml'));
+    let files = plan.files.filter(f => f.changed && (!onlyPlan || f.path === 'testplan/testplan.yaml'));
     if (!files.length) {
       // plan unchanged: still make sure the Excel copy exists
       let made = null;
-      if (!fs.existsSync(path.join(root, 'testplan.xlsx'))) { try { made = require('./planxlsx').writePlan(root); } catch (e) { out.appendLine('[generate] testplan.xlsx not written: ' + e.message); } }
+      if (!fs.existsSync(require('./layout').planXlsx(root))) { try { made = require('./planxlsx').writePlan(root); } catch (e) { out.appendLine('[generate] testplan.xlsx not written: ' + e.message); } }
       vscode.window.showInformationMessage(made ? `Everything is up to date. Created the Excel test plan: ${path.basename(made)}` : 'Everything is up to date.', ...(made ? ['View in VS Code', 'Open in Excel'] : [])).then(x => { if (x === 'View in VS Code') vscode.commands.executeCommand('vscode.openWith', vscode.Uri.file(made), 'tenxDebug.xlsxViewer'); else if (x) vscode.env.openExternal(vscode.Uri.file(made)); });
       return;
     }
@@ -206,9 +226,11 @@ function register(context) {
     out.appendLine(`[generate] ${files.length} file(s) written in ${root}: ${files.map(f => f.path).filter(p => !p.startsWith('.dvflow')).join(', ')}`);
     if (files.xlsx) out.appendLine(`[generate] Excel test plan: ${files.xlsx}`);
     if (files.xlsxError) out.appendLine(`[generate] testplan.xlsx not written: ${files.xlsxError}`);
+    if (files.movedPlan) out.appendLine('[layout] the test plan is now in testplan/ (testplan.yaml + testplan.xlsx)');
+    if (files.retiredUvm && files.retiredUvm.length) out.appendLine(`[layout] UVM files are now in uvm/tb, agent, sequences, env, tests, scripts; the old flat copies (${files.retiredUvm.length}) are in uvm/_old_flat_layout/`);
     vscode.window.showInformationMessage(`${onlyPlan ? 'Test plan' : 'Testbench'} generated (${files.length} file(s))${files.xlsx ? ' + ' + path.basename(files.xlsx) : ''}.`, 'Open test plan', ...(files.xlsx ? ['View Excel plan', 'Open in Excel'] : []), 'Run Regression').then(x => {
       if (x === 'View Excel plan') vscode.commands.executeCommand('vscode.openWith', vscode.Uri.file(files.xlsx), 'tenxDebug.xlsxViewer');
-      if (x === 'Open test plan') vscode.window.showTextDocument(vscode.Uri.file(path.join(root, 'testplan.yaml')));
+      if (x === 'Open test plan') vscode.window.showTextDocument(vscode.Uri.file(require('./layout').planYaml(root)));
       if (x === 'Open in Excel') vscode.env.openExternal(vscode.Uri.file(files.xlsx));
       if (x === 'Run Regression') runRegression();
     });
@@ -386,7 +408,7 @@ function register(context) {
   async function runTest() {
     const root = await pickProject(); if (!root) return;
     const cfg = runner.loadConfig(root);
-    const hasUvm = fs.existsSync(path.join(root, 'uvm', 'files.f'));
+    const hasUvm = require('./layout').hasUvm(root);
     const hasCocotb = fs.existsSync(path.join(root, 'cocotb', 'Makefile'));
     const kinds = [{ label: '$(beaker) Simple testbench (lightweight SV)', description: 'Icarus · Questa · VCS · Verilator', v: 'lightweight' }]
       .concat(hasUvm ? [{ label: '$(layers) UVM testbench', description: 'Questa · VCS · Verilator', v: 'uvm' }] : [])
@@ -545,7 +567,7 @@ const b = document.createElement('button'); b.textContent = 'Open in browser'; b
     switch (id) {
       case 'tools': await vscode.commands.executeCommand('tenxDebug.toolchain.status'); return true;
       case 'files': {
-        await vscode.window.showTextDocument(vscode.Uri.file(path.join(root, 'testplan.yaml')), { viewColumn: vscode.ViewColumn.Beside, preview: false });
+        await vscode.window.showTextDocument(vscode.Uri.file(require('./layout').planYaml(root)), { viewColumn: vscode.ViewColumn.Beside, preview: false });
         vscode.commands.executeCommand('revealInExplorer', vscode.Uri.file(path.join(root, 'uvm')));
         return true;
       }

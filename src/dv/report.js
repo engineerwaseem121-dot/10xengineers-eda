@@ -143,7 +143,7 @@ function write(root, res) {
   const out = path.join(runDir, 'report');
   fs.mkdirSync(out, { recursive: true });
   const toRoot = path.relative(out, root).replace(/\\/g, '/') || '.';
-  const data = { ...res, links: { toRun: '..', toRoot, testplan: toRoot + '/testplan.yaml', sources: [] }, logs: embedLogs(runDir, res), waves: embedWaves(runDir, res), history: history(root, res), mutation: latestMutation(root), signoff: latestSignoff(root) };
+  const data = { ...res, links: { toRun: '..', toRoot, testplan: toRoot + '/' + require('./layout').planYamlRel(root), sources: [] }, logs: embedLogs(runDir, res), waves: embedWaves(runDir, res), history: history(root, res), mutation: latestMutation(root), signoff: latestSignoff(root) };
   try {
     const cfg = JSON.parse(fs.readFileSync(path.join(runDir, 'config.json'), 'utf8'));
     data.links.sources = (cfg.dut.files || []).map(f => ({ name: f, href: toRoot + '/' + f.replace(/\\/g, '/') }));

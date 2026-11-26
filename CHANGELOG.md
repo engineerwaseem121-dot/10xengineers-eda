@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.17.0
+- **A standard project structure.** `design/` for the RTL, `testplan/` for `testplan.yaml` and `testplan.xlsx`, `tb/`, `cocotb/`, and a UVM environment split into `uvm/tb`, `agent`, `sequences`, `env`, `tests` and `scripts`. See *Project structure* in the README.
+  - **DV: Select DUT** offers *Move RTL to design/* when the RTL sits in the project folder (open editors follow, and `dvflow.json` is updated).
+  - Older projects are reorganised on the next **DV: Generate Testbench**: the plan moves to `testplan/`, the UVM files go into their folders, and the old flat UVM files are kept in `uvm/_old_flat_layout/`. Until then everything still works from the old places.
+  - The UVM Questa scripts (`uvm/scripts/run.do`, `Makefile`, `run.sh`, `run.bat`) compile from `uvm/` with `files.f`.
+- **cocotb:** a free-running counter (no enable) was checked one cycle late after reset (`expected 1 got 2`), so correct designs failed. The first step after reset now drives on the same edge the reset ended on. Regenerate the cocotb testbench to get the fix.
+
 ## 0.16.1
 - **Every run updates the test plan.** UVM and cocotb runs (DV: Run Test → UVM / cocotb) now write the results block of `testplan.yaml` and refresh `testplan.xlsx`, like the SV regressions. Before, they updated only the dashboard.
 - **Waveforms for failures, automatically.** The new default waveform mode is *only if the test fails*. Passing runs stay fast with no dump. A failing run is repeated once with the same seed and the waveform on, so `waves.vcd` is in the run folder, in the failure folder and in the dashboard. This applies to single runs, regressions and UVM.

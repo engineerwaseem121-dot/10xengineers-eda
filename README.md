@@ -12,7 +12,7 @@ You need **VS Code (or Cursor) and Docker**, nothing else. No simulator to insta
 |---|---|---|
 | **1. Install Docker** | **Windows:** [Docker Desktop](https://docs.docker.com/desktop/setup/install/windows-install/), or Docker Engine inside WSL ([how](container/README.md#windows-docker-engine-inside-wsl-no-docker-desktop)). **Linux:** [Docker Engine](https://docs.docker.com/engine/install/), then `sudo usermod -aG docker $USER` and log in again. **macOS:** Docker Desktop. Start it once. | `docker run hello-world` works in a terminal |
 | **2. Install the extension** | VS Code → Extensions (`Ctrl+Shift+X`) → search **10xEngineers EDA** → Install | **EDA: auto** in the status bar |
-| **3. Open your design** | *File → Open Folder* with your `.sv` / `.v` file. Open the file, then `Ctrl+Shift+P` → **DV: Select DUT** → **DV: Generate Testbench → All** | `dvflow.json`, `tb/`, `uvm/`, `cocotb/`, `testplan.yaml`, `testplan.xlsx` |
+| **3. Open your design** | *File → Open Folder* with your `.sv` / `.v` file. Open the file, then `Ctrl+Shift+P` → **DV: Select DUT** → **DV: Generate Testbench → All** | `dvflow.json`, `tb/`, `uvm/`, `cocotb/` and `testplan/` (see [Project structure](#project-structure)) |
 | **4. Run** | `Ctrl+Shift+P` → **DV: Run Regression** (or **DV: Run Test**) | **First run only:** the tools image downloads (about 1.2 GB, progress in *Output → 10xEngineers EDA*), is checked, then the tests run. After that, runs start straight away. **DV: Open Dashboard** shows the results. |
 
 ![What happens when you press Run in Docker mode](images/docker-first-run.png)
@@ -32,6 +32,34 @@ You need **VS Code (or Cursor) and Docker**, nothing else. No simulator to insta
 | A test fails | That is the testbench working: open the dashboard; triage names the output, expected vs actual and the time, and the waveform opens there |
 
 To check everything at once: `Ctrl+Shift+P` → **DV: Check Tools**.
+
+### Project structure
+
+Every project uses the same layout, so anyone on the team knows where to look:
+
+```text
+my_block/
+├── dvflow.json                 DUT, clock/reset and the behaviour spec (expected results)
+├── Makefile, dvflow.sh/.cmd    run everything from a terminal or CI
+├── design/                     your RTL
+├── testplan/
+│   ├── testplan.yaml           requirements → scenarios → coverage bins (you edit this)
+│   └── testplan.xlsx           the same plan with pass/fail, bins hit and the reason for every non-pass
+├── tb/                         simple self-checking SystemVerilog testbench
+├── uvm/
+│   ├── <top>_pkg.sv            package that includes everything below
+│   ├── files.f                 source list (RTL + testbench)
+│   ├── tb/                     tb_top.sv, interface, assertions
+│   ├── agent/                  config, sequence item, sequencer, driver, monitor, agent
+│   ├── sequences/              scenario sequences: reset, directed, corner, random
+│   ├── env/                    environment, scoreboard (reference model), coverage
+│   ├── tests/                  base, scenario, random and closure tests
+│   └── scripts/                run.do, Makefile, run.sh, run.bat (Questa)
+├── cocotb/                     Python testbench
+└── runs/<run-id>/              one folder per run: logs, waves, results.json, junit.xml, dashboard
+```
+
+**DV: Select DUT** offers to move an RTL file that sits in the project folder into `design/`. Projects made by older versions are reorganised the next time you run **DV: Generate Testbench**: the test plan moves to `testplan/` and the UVM files to their folders, and any previous flat UVM files are kept in `uvm/_old_flat_layout/`.
 
 ---
 

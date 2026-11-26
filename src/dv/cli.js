@@ -79,6 +79,8 @@ async function main() {
       log(`wrote ${changed.length} file(s)`);
       if (files.xlsx) log(`A ${path.relative(root, files.xlsx)}  (Excel test plan)`);
       if (files.xlsxError) log(`testplan.xlsx not written: ${files.xlsxError}`);
+      if (files.movedPlan) log('[layout] the test plan is now in testplan/ (testplan.yaml + testplan.xlsx)');
+    if (files.retiredUvm && files.retiredUvm.length) log(`[layout] UVM files are now in uvm/tb, agent, sequences, env, tests, scripts; the old flat copies (${files.retiredUvm.length}) are in uvm/_old_flat_layout/`);
       return 0;
     }
     case 'build': { const r = await runner.regress(root, { sim: a.sim, configs: csv(a.config || a.configs), cov: a.cov, buildOnly: true, log, token, settings, override }); return r.builds.some(b => b.failed) ? 2 : 0; }

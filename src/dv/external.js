@@ -71,7 +71,7 @@ function publish(root, cfg, o) {
   // the test plan follows every run, UVM and cocotb included: testplan.yaml results block + testplan.xlsx
   if (!o.quiet) {
     try {
-      const tp = path.join(root, 'testplan.yaml');
+      const tp = require('./layout').planYaml(root);
       if (fs.existsSync(tp)) fs.writeFileSync(tp, require('./testplan').updateResults(fs.readFileSync(tp, 'utf8'), JSON.parse(text), path.relative(root, runDir).split(path.sep).join('/')));
       result.testplanXlsx = require('./planxlsx').write(root, JSON.parse(text));
     } catch (e) { result.testplanError = e.message; }

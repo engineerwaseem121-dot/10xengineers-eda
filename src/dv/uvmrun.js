@@ -16,7 +16,7 @@ const UVM_SIMS = ['questa', 'vcs', 'verilator'];
 
 /** UVM test classes declared in uvm/<top>_tests.sv (excluding the base test). */
 function listTests(root, cfg) {
-  const f = path.join(root, 'uvm', `${cfg.dut.top}_tests.sv`);
+  const f = require('./layout').uvmPath(root, cfg.dut.top, `${cfg.dut.top}_tests.sv`);
   if (!fs.existsSync(f)) return [];
   const out = [];
   const re = /^\s*class\s+(\w+)\s+extends\s+\w+/gm;
@@ -197,7 +197,7 @@ function finish(root, runBase, runId, simId, det, results, log, coverage, ctx) {
         build: { failed: ctx.failed, errors: [], commands: ctx.commands, log: path.relative(runBase, ctx.buildLog).replace(/\\/g, '/') } });
       res.report = pub.report;
       log(`   dashboard:       ${pub.report}`);
-      log(`   test plan:       ${path.join(root, 'testplan.yaml')}`);
+      log(`   test plan:       ${require('./layout').planYaml(root)}`);
       if (pub.result.testplanXlsx) log(`   test plan Excel: ${pub.result.testplanXlsx}`);
       else if (pub.result.testplanError) log(`   # testplan.xlsx not written: ${pub.result.testplanError}`);
     } catch (e) { log('# dashboard not written: ' + e.message); }
