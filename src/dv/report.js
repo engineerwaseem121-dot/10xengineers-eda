@@ -760,7 +760,7 @@ function logView(id, text){
 }
 function md(s){
   var out = [], code = false, list = false;
-  function inl(t){ return esc(t).replace(/\x60([^\x60]+)\x60/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>'); }
+  function inl(t){ return esc(t).replace(/\x60([^\x60]+)\x60/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<code title="$2">$1</code>'); }
   function endList(){ if (list) { out.push('</ul>'); list = false; } }
   String(s).split(/\r?\n/).forEach(function(l){
     if (/^\x60\x60\x60/.test(l)) { endList(); out.push(code ? '</pre>' : '<pre>'); code = !code; return; }

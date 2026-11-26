@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.12.3
+- **Demo in pictures.** 11 labelled screenshots in `images/demo/`, taken from a complete run on one design (`reg_32_bit.sv`). Each has numbered labels with an explanation bar. They appear in the README (*See it working*) and in the Welcome walkthrough steps (demo, dashboard, run, UVM, sign-off, quality).
+- Fix: the run panel showed raw Markdown links (`[sim.log](sim.log)`) in the triage notes.
+- Fix: X-trace showed raw simulation ticks (*unknown since 15000*); it now shows formatted times (*15 ns*).
+- `package.json`: `repository` and `bugs` links.
+
 ## 0.12.2
 - **testplan.xlsx is created together with testplan.yaml.** This applies to Generate Test Plan, Generate Testbench, `dvflow init` and `dvflow generate --yes`.
   - The workbook has Summary, Requirements, Scenarios, Coverage bins, Checkers and Tests sheets, marked NOT RUN until the first regression, which rewrites it with results.

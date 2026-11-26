@@ -11,3 +11,11 @@
 | **Formal proof** (`DV: Formal Proof`) | The DUT is proven equal to the reference model **for every input sequence**, not just the tests you ran. Every coverage bin becomes a formal cover, so you learn which bins can never happen. A failure comes with a counterexample waveform. |
 
 You don't write any properties: the formal harness is generated from the same behaviour spec the testbenches use. Everything runs on open-source tools (Yosys, SymbiYosys with Z3, Verilator, Icarus) in the Docker toolchain.
+
+## In pictures
+
+The numbered labels on each picture are explained in its top bar.
+
+**Sign-off report: lint, synthesis, equivalence, gate-level simulation and formal**
+
+![Sign-off report: lint, synthesis, equivalence, gate-level simulation and formal](../../images/demo/10-signoff.png)

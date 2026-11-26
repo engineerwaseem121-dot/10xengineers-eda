@@ -1299,7 +1299,7 @@
     let h = `<h4 style="margin:10px 0 4px">Through the RTL drivers <span class="hint">(${m.modules} module(s) indexed · structural, no elaboration)</span></h4>`;
     h += '<table class="tt"><tr><th>#</th><th>Signal</th><th>Unknown since</th><th>Value</th><th>Driver</th><th>Why the trace moved on</th></tr>';
     (m.steps || []).forEach((s, k) => {
-      h += `<tr data-t="${s.since}"><td>${k + 1}</td><td>${link(s.file, s.line, s.path)}${s.module ? ` <span class="hint">(${esc(s.module)})</span>` : ''}</td><td class="mono"><span class="chip click" data-t="${s.since}">${fmtTime(s.since)}</span></td><td class="mono">${esc(s.value || '')}</td><td class="mono">${link(s.driverFile, s.driverLine, s.driverText ? `${s.driverLine + 1}: ${s.driverText}` : '')}</td><td>${esc(s.why || '')}</td></tr>`;
+      h += `<tr data-t="${s.since}"><td>${k + 1}</td><td>${link(s.file, s.line, s.path)}${s.module ? ` <span class="hint">(${esc(s.module)})</span>` : ''}</td><td class="mono"><span class="chip click" data-t="${s.since}">${fmtTime(s.since)}</span></td><td class="mono">${esc(s.value || '')}</td><td class="mono">${link(s.driverFile, s.driverLine, s.driverText ? `${s.driverLine + 1}: ${s.driverText}` : '')}</td><td>${esc(s.why || '')}${s.whyT != null ? ' ' + fmtTime(s.whyT) : ''}</td></tr>`;
     });
     h += '</table>';
     if (m.root) h += `<div class="xroot"><b>Origin:</b> ${link(m.root.file, m.root.line, m.root.path)} @ <span class="chip click" data-t="${m.root.since}">${fmtTime(m.root.since)}</span> — ${esc(m.root.reason || '')}${m.root.driverText ? `<br><span class="hint">driver: </span>${link(m.root.driverFile, m.root.driverLine, (m.root.driverLine + 1) + ': ' + m.root.driverText)}` : ''}</div>`;

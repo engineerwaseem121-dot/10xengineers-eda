@@ -14,3 +14,11 @@ A green regression only shows that the tests passed. **Mutation testing** checks
 | **invalid** | The mutant didn't compile. Not counted. |
 
 **Mutation score** = killed / (killed + survived). For each survivor, the report links to its line: add a check or stimulus that makes the original and the mutant behave differently.
+
+## In pictures
+
+The numbered labels on each picture are explained in its top bar.
+
+**Mutation report: one survivor shows a missing check**
+
+![Mutation report: one survivor shows a missing check](../../images/demo/11-mutation.png)

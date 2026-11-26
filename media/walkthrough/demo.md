@@ -16,3 +16,11 @@
 12. Sign-off check
 
 The whole tour takes about 5 minutes. When you're done, use **DV: Select DUT** on your own design.
+
+## In pictures
+
+The numbered labels on each picture are explained in its top bar.
+
+**What the demo ends with: every run, coverage, sign-off and testbench quality on one page**
+
+![What the demo ends with: every run, coverage, sign-off and testbench quality on one page](../../images/demo/01-dashboard-overview.png)

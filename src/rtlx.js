@@ -245,7 +245,8 @@ function traceX(parsed, vars, index, start, opts) {
       cands.sort((a, b) => a.since - b.since);
       const c = cands[0];
       step.driver = c.via;
-      step.why = `${c.v.name.replace(/\s*\[.*$/, '')} is unknown since ${c.since}`;
+      step.why = `${c.v.name.replace(/\s*\[.*$/, '')} is unknown since`;
+      step.whyT = c.since;   // the viewer formats the time with the dump's timescale
       cur = { v: c.v, since: c.since };
       continue;
     }

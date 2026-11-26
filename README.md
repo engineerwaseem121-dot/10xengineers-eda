@@ -64,6 +64,86 @@ Give it a Verilog/SystemVerilog design and it gives you:
 
 ---
 
+## See it working: one register, every step
+
+Everything below was produced from **one file**: [`reg_32_bit.sv`](#the-design), a 32-bit register with write enable and asynchronous reset. Nothing else was written by hand. Each picture has numbered labels; the bar at its top explains each number.
+
+| # | Step | Command (or `dvflow` on the command line) | Result |
+|---|---|---|---|
+| 1 | Generate everything | **DV: Select DUT**, then **DV: Generate Testbench → All** (`dvflow init --file reg_32_bit.sv --mode all`) | SV, UVM and cocotb testbenches, `testplan.yaml` **and** `testplan.xlsx`: 3 requirements, 5 scenarios, 5 coverage bins |
+| 2 | Regression on Icarus | **DV: Run Regression**, seeds `1:5` | 20 / 20 passed, functional coverage 100% |
+| 3 | Regression on Verilator, with code coverage | **DV: Run Regression → Verilator → coverage** | 12 / 12 passed; line, branch, expression and toggle coverage 100% |
+| 4 | UVM on Verilator (no license) | **DV: Run Test → UVM testbench → Verilator** | 4 / 4 passed |
+| 5 | cocotb | **DV: Run Test → cocotb testbench** | 4 / 4 passed |
+| 6 | Sign-off | **DV: Sign-off Check** | lint, synthesis, equivalence, gate-level sim and formal all pass |
+| 7 | Testbench quality | **DV: Mutation Test** | 50%: the `posedge → negedge` mutant survived, which shows a missing check |
+| 8 | Plant a bug, then fix it | edit the RTL, **DV: Run Regression** twice | 0 / 8 with a precise triage, then 20 / 20 again |
+
+### 1 · The dashboard after the regression
+![Dashboard overview with numbered labels](images/demo/01-dashboard-overview.png)
+
+### 2 · A failing run: the log and the waveform side by side
+A bug was planted on purpose (`q <= din ^ 32'h100`). Click the red cell to open the run.
+![Run panel with log and waveform](images/demo/02-run-panel-log-waveform.png)
+
+### 3 · Failure triage
+![Failure triage](images/demo/03-failure-triage.png)
+
+### 4 · Coverage: functional bins and code coverage
+![Coverage tab](images/demo/04-coverage.png)
+
+### 5 · Traceability: requirement → scenario → run
+![Traceability](images/demo/05-traceability.png)
+
+### 6 · History: the bug and the fix, across every run
+![History and Compare](images/demo/06-history-compare.png)
+
+### 7 · Waveform viewer: protocol decoder and transaction table
+![Waveform viewer with decoder](images/demo/07-waveform-decoders.png)
+
+### 8 · X-trace: from an X to the line that causes it
+A second small design (an unreset register in a sub-module, fed by a testbench input that starts as X). The trace walks 8 steps through the hierarchy to the cause.
+![X-trace through RTL drivers](images/demo/08-xtrace-rtl.png)
+
+### 9 · UVM architecture of the generated testbench
+![UVM architecture diagram](images/demo/09-uvm-architecture.png)
+
+### 10 · Sign-off
+![Sign-off report](images/demo/10-signoff.png)
+
+### 11 · Mutation testing
+![Mutation testing report](images/demo/11-mutation.png)
+
+#### The design
+```systemverilog
+// 32-bit write-only register
+//
+// Software/bus side can only write it: when we = 1 on a rising clock edge, din is stored.
+// There is no read-back path; the stored value drives hardware through q.
+// Active-low asynchronous reset loads RESET_VALUE.
+module reg_32_bit #(
+    parameter logic [31:0] RESET_VALUE = 32'h0000_0000
+) (
+    input  logic        clk,
+    input  logic        rst_n,   // asynchronous reset, active low
+    input  logic        we,      // write enable
+    input  logic [31:0] din,     // write data
+    output logic [31:0] q        // register value (to hardware, not readable by software)
+);
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            q <= RESET_VALUE;
+        else if (we)
+            q <= din;
+        // we = 0: hold the current value
+    end
+
+endmodule
+```
+
+---
+
 ## Quick start: the 5-minute demo
 
 1. Install **Docker**. On Windows that's Docker Desktop, or Docker Engine inside WSL; [container/README.md](container/README.md) has both.

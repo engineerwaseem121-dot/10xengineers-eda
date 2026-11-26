@@ -8,3 +8,11 @@
 - the **config_db** set/get pairs
 
 To run it: **DV: Run Test** → **UVM testbench** → **Verilator** ("no license needed"), tick the tests, then pick a seed. Questa and VCS work with the same steps when installed.
+
+## In pictures
+
+The numbered labels on each picture are explained in its top bar.
+
+**The UVM architecture diagram for the generated testbench**
+
+![The UVM architecture diagram for the generated testbench](../../images/demo/09-uvm-architecture.png)
