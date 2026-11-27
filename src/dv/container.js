@@ -225,7 +225,7 @@ function ensure() {
     const st = run(['inspect', '-f', '{{.State.Running}}', n], { timeout: 30000 });
     if (st.code === 0 && st.out === 'true') return n;
     if (st.code === 0) { const s = run(['start', n], { timeout: 60000 }); if (s.code === 0) return n; run(['rm', '-f', n]); }
-    const args = ['run', '-d', '--name', n, '--label', 'com.10xengineers.eda=toolchain', '--init', '--restart', 'unless-stopped'];
+    const args = ['run', '-d', '--name', n, '--label', 'com.10xengineers.eda=toolchain', '--init'];
     for (const m of mountList()) args.push('-v', `${hostForEngine(m, e)}:${toCtr(m)}`);
     if (!IS_WIN && process.getuid) args.push('-u', `${process.getuid()}:${process.getgid()}`);
     args.push(c.image, 'sleep', 'infinity');

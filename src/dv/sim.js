@@ -21,6 +21,8 @@ const cp = require('child_process');
 /** path relative to the compile directory when it is inside it (keeps spaces above the project out of tool arguments) */
 // Verilator obj_dir. Its generated Makefile refuses any absolute path with a space (make -C cwd), so in the container
 // such projects compile on the container filesystem (/tmp/tenx-obj/<hash>) and the binary runs there.
+/** parallel C++ jobs for Verilator: DVFLOW_VERILATOR_JOBS, else half the cores, at most 4 (UVM builds are memory-hungry) */
+const vjobs = () => String(Number(process.env.DVFLOW_VERILATOR_JOBS) > 0 ? Number(process.env.DVFLOW_VERILATOR_JOBS) : Math.min(4, Math.max(1, Math.floor(require('os').cpus().length / 2))));
 const vobj = (root, dir, container) => {
   if (container && /s/.test(path.resolve(dir))) return { ctr: true, dir: '/tmp/tenx-obj/' + require('crypto').createHash('sha1').update(path.resolve(dir)).digest('hex').slice(0, 12) };
   return { ctr: false, dir: relRoot(root, path.join(dir, 'obj_dir')) };
@@ -204,7 +206,7 @@ const VERILATOR = {
   build(ctx) {
     const v = ctx.t[IS_WIN ? 'verilator_bin' : 'verilator'];
     const obj = vobj(ctx.root, ctx.outDir, ctx.container);
-    return [...(obj.ctr ? [{ stage: 'compile', cmd: 'ctr:mkdir', args: ['-p', obj.dir], cwd: ctx.root }] : []), { stage: 'compile', cmd: v, args: ['--binary', '--timing', '-j', '0', '-Wno-fatal', '-Wno-lint', '-Wno-style', '--trace', ...(ctx.cov ? ['--coverage'] : []), '--top-module', ctx.tbTop, '-Mdir', obj.dir, '-o', 'sim', '-f', ctx.fileList], cwd: ctx.root }];   // relative -Mdir: Verilator's generated Makefile cannot handle spaces in the obj_dir path
+    return [...(obj.ctr ? [{ stage: 'compile', cmd: 'ctr:mkdir', args: ['-p', obj.dir], cwd: ctx.root }] : []), { stage: 'compile', cmd: v, args: ['--binary', '--timing', '-j', vjobs(), '-Wno-fatal', '-Wno-lint', '-Wno-style', '--trace', ...(ctx.cov ? ['--coverage'] : []), '--top-module', ctx.tbTop, '-Mdir', obj.dir, '-o', 'sim', '-f', ctx.fileList], cwd: ctx.root }];   // relative -Mdir: Verilator's generated Makefile cannot handle spaces in the obj_dir path
   },
   run(ctx) { const obj = vobj(ctx.root, ctx.buildDir, ctx.container); return { stage: 'simulate', cmd: obj.ctr ? obj.dir + '/sim' : path.join(ctx.buildDir, 'obj_dir', exe('sim')), args: ctx.plusargs, cwd: ctx.runDir }; },
   smoke(dir) {
@@ -352,4 +354,4 @@ function doctor(simId, opts) {
   return { simId, label: a.label, version, stages, ok: stages.every(s => s.ok), source: r.source, licenseVars: lic, caps };
 }
 
-module.exports = { ADAPTERS, detect, capabilities, alternatives, doctor, resolveTools, resolveLocal, licenseEnv, redact, diagnose, compileErrors, fixHint, loadUser, saveUser, USER_FILE, IS_WIN, LICENSE_VARS };
+module.exports = { vjobs, ADAPTERS, detect, capabilities, alternatives, doctor, resolveTools, resolveLocal, licenseEnv, redact, diagnose, compileErrors, fixHint, loadUser, saveUser, USER_FILE, IS_WIN, LICENSE_VARS };

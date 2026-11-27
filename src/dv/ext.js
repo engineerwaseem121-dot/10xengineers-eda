@@ -31,9 +31,27 @@ function register(context) {
     const ed = vscode.window.activeTextEditor;
     if (ed) { const hit = found.find(d => ed.document.uri.fsPath.startsWith(d + path.sep)); if (hit) return hit; }
     if (found.length === 1) return found[0];
-    if (!found.length) { if (required) vscode.window.showWarningMessage('No dvflow.json found. Run "DV: Select DUT" first.'); return null; }
+    if (!found.length) { if (required) noProject(); return null; }
     const p = await vscode.window.showQuickPick(found.map(d => ({ label: path.basename(d), description: vscode.workspace.asRelativePath(d), d })), { placeHolder: 'DV project' });
     return p && p.d;
+  }
+  /** no DV project in the open folder: say why and offer the way forward instead of a dead end */
+  async function noProject() {
+    const demo = context.globalState.get('tenxDebug.demo.last') || path.join(require('os').homedir(), '10xEDA-demo');
+    const hasDemo = fs.existsSync(path.join(demo, 'dvflow.json'));
+    const ed = vscode.window.activeTextEditor;
+    const hdl = ed && /\.(sv|v|svh|vh|vhd|vhdl)$/i.test(ed.document.fileName);
+    const why = !vscode.workspace.workspaceFolders || !vscode.workspace.workspaceFolders.length
+      ? 'No folder is open in VS Code.'
+      : 'The open folder has no DV project yet (no dvflow.json).';
+    const acts = [...(hdl ? ['Select DUT in this file'] : []), hasDemo ? 'Open the demo project' : 'Create Demo Project', 'Open Folder…'];
+    const a = await vscode.window.showWarningMessage(`${why} Open your RTL file and run "DV: Select DUT"${hasDemo ? `, or open the demo project (${demo})` : ', or try the ready-made demo'}.`, ...acts);
+    if (a === 'Select DUT in this file') selectDut(ed.document.uri);
+    else if (a === 'Create Demo Project') createDemo();
+    else if (a === 'Open the demo project') {
+      await context.globalState.update('tenxDebug.demo.openTourFor', path.resolve(demo));
+      vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(demo), { forceNewWindow: false });
+    } else if (a === 'Open Folder…') vscode.commands.executeCommand('workbench.action.files.openFolder');
   }
   /** show a DV error; typographic quotes in the DUT get a one-click fix */
   function fail(prefix, e) {
@@ -475,8 +493,15 @@ function register(context) {
         if (m.type === 'browser') vscode.env.openExternal(vscode.Uri.file(dashPanel._file));
         // "Rerun with waves" from the run detail panel: same simulator, test, seed and configuration
         if (m.type === 'rerun' && (m.kind === 'uvm' || m.kind === 'cocotb')) {
+          if (!trusted()) return;
           const root = path.resolve(path.dirname(dashPanel._file), '..', '..', '..');
           const cfg = runner.loadConfig(root);
+          // the page is a file in the workspace: accept only simulators and tests this project really has
+          const sims = m.kind === 'uvm' ? ['questa', 'vcs', 'verilator'] : ['icarus', 'verilator'];
+          const known = m.kind === 'uvm' ? require('./uvmrun').listTests(root, cfg) : (require('./cocotbrun').listTests ? require('./cocotbrun').listTests(root, cfg) : cfg.tests);
+          if (!sims.includes(m.sim) || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(String(m.test)) || (known.length && !known.includes(m.test) && !known.some(k => k.endsWith('_' + m.test)) && !cfg.tests.includes(m.test))) {
+            vscode.window.showWarningMessage(`Rerun refused: unknown simulator or test (${m.sim} / ${m.test}).`); return;
+          }
           out.show(true);
           vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: `Rerun ${m.kind}: ${m.test} seed ${m.seed}`, cancellable: true }, async (prog, token) => {
             const o = { sim: m.sim, tests: [m.test], seeds: [Number(m.seed)], token, settings: settings(), log: s => out.appendLine(s) };
@@ -519,6 +544,7 @@ const b = document.createElement('button'); b.textContent = 'Open in browser'; b
       fs.copyFileSync(path.join(context.extensionUri.fsPath, 'examples', 'demo', 'adder.sv'), path.join(dir, 'adder.sv'));
       const r = require('./demo').init(dir, 'adder.sv', { top: 'adder4', mode: 'all', engineSrc, runtime: process.execPath });
       fs.writeFileSync(path.join(dir, DEMO_MARK), JSON.stringify({ created: new Date().toISOString(), dut: 'adder.sv' }, null, 2));
+      await context.globalState.update('tenxDebug.demo.last', path.resolve(dir));   // "Open the demo project" finds it again later
       out.appendLine(`[demo] ${dir}: ${r.files.length} files generated (template ${r.cfg.template})`);
     } catch (e) { vscode.window.showErrorMessage('Could not create the demo: ' + e.message); return; }
     const open = (vscode.workspace.workspaceFolders || []).some(f => path.resolve(f.uri.fsPath).toLowerCase() === path.resolve(dir).toLowerCase());

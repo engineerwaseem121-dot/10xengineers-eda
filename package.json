@@ -22,7 +22,7 @@
   "keywords": ["verilog", "systemverilog", "uvm", "testbench", "design verification", "waveform viewer", "vcd", "waveform", "verilator", "icarus", "questa", "cocotb", "coverage", "regression", "testplan", "formal", "yosys", "synthesis", "gate level simulation", "lint", "fsm", "protocol decoder", "wavedrom", "rtl", "hdl", "asic", "fpga", "eda", "simulation", "riscv"],
   "main": "./extension.js",
   "capabilities": {
-    "untrustedWorkspaces": { "supported": "limited", "description": "Viewing works everywhere; generating files and running simulators requires a trusted workspace." }
+    "untrustedWorkspaces": { "supported": "limited", "description": "Viewing works everywhere; generating files and running simulators requires a trusted workspace. Settings that name programs or container images are read from your user settings only.", "restrictedConfigurations": ["tenxDebug.lint.slangPath", "tenxDebug.lint.verilatorPath", "tenxDebug.lint.iverilogPath", "tenxDebug.netlist.yosysPath", "tenxDebug.questa.path", "tenxDebug.dv.icarusBin", "tenxDebug.dv.vcsBin", "tenxDebug.wave.converters", "tenxDebug.toolchain.image", "tenxDebug.toolchain.mounts", "tenxDebug.toolchain.engine"] }
   },
   "activationEvents": [
     "onLanguage:verilog",
