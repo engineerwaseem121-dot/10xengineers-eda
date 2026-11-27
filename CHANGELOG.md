@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.17.2
+- **No more dead end when there is no project.** Every DV command (and **Open Demo Tour**) used to stop with "No dvflow.json found" when the open folder had no DV project. It now says why and offers the way forward: **Select DUT in this file** (when an RTL file is open), **Create Demo Project** or **Open the demo project** (reopens the one you made before), and **Open Folder…**.
+- The extension now starts when a folder contains `dvflow.json`, so the Demo Tour opens by itself when the demo folder is opened.
+- **Laptops no longer freeze on UVM builds.** Verilator used every CPU core (`-j 0`); large UVM builds could exhaust the memory of WSL / Docker. It now uses half the cores, at most 4 (`DVFLOW_VERILATOR_JOBS` overrides).
+- **Safer in folders you have not trusted:** settings that name a program or container image (lint tool paths, simulator folders, waveform converters, toolchain image and mounts) come from your user settings only. The dashboard's *Rerun* button checks workspace trust and accepts only this project's simulators and tests.
+- Toolchain containers no longer restart by themselves every time Docker starts.
+
 ## 0.17.1
 - **The tools image is published:** `ghcr.io/engineerwaseem121-dot/eda-tools:1.0.0` is public. A new user with only Docker installed gets it automatically on the first run (tested: download, smoke test, SV, UVM and cocotb runs).
 - **cocotb in folders with spaces** (for example `My Projects`): the generated Makefile and the results file now use paths relative to `cocotb/`, because GNU make splits paths at spaces. Regenerate the cocotb testbench to get it.

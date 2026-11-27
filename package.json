@@ -2,7 +2,7 @@
   "name": "10xengineer-eda",
   "displayName": "10xEngineers EDA: Verilog, SystemVerilog & UVM Verification Suite",
   "description": "All-in-one Verilog, SystemVerilog and UVM design-verification suite. Install Docker and press Run: the open-source tools (Icarus, Verilator with UVM, Yosys, cocotb) download by themselves, no simulator or license needed. Generates SV, UVM and cocotb testbenches from your RTL, runs regressions (Questa and VCS too), and adds a waveform viewer with decoders and X-trace, coverage, Excel test plans, formal, synthesis and sign-off. One extension instead of ten.",
-  "version": "0.17.1",
+  "version": "0.17.2",
   "publisher": "WaseemAbbas",
   "repository": { "type": "git", "url": "https://github.com/engineerwaseem121-dot/10xengineers-eda.git" },
   "bugs": { "url": "https://github.com/engineerwaseem121-dot/10xengineers-eda/issues" },
