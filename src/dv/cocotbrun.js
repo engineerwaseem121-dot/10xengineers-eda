@@ -36,6 +36,13 @@ function listTests(root, cfg) {
   return out;
 }
 
+/** results.xml path for cocotb: relative to cocotb/ (its Makefile passes the value unquoted, so a project path with spaces breaks) */
+function resultsPath(dir, rd) {
+  const abs = path.join(rd, 'results.xml');
+  const rel = path.relative(dir, abs).split(path.sep).join('/');
+  return /\s/.test(abs) && !/\s/.test(rel) ? rel : abs;
+}
+
 async function run(root, cfg, o) {
   o = o || {};
   const log = o.log || (() => {});
@@ -69,7 +76,7 @@ async function run(root, cfg, o) {
     const lf = path.join(rd, 'sim.log');
     // cocotb 2.x matches the filter against the full name (test_<top>.<test>); its Makefile pastes the value into a
     // shell line unquoted, so the regex must avoid shell metacharacters
-    const envv = { COCOTB_TEST_FILTER: `.${t}$`, COCOTB_RANDOM_SEED: String(seed), RANDOM_SEED: String(seed), COCOTB_RESULTS_FILE: path.join(rd, 'results.xml'), COCOTB_ANSI_OUTPUT: '0', ...(o.iterations ? { ITERATIONS: String(o.iterations) } : {}) };
+    const envv = { COCOTB_TEST_FILTER: `.${t}$`, COCOTB_RANDOM_SEED: String(seed), RANDOM_SEED: String(seed), COCOTB_RESULTS_FILE: resultsPath(dir, rd), COCOTB_ANSI_OUTPUT: '0', ...(o.iterations ? { ITERATIONS: String(o.iterations) } : {}) };
     const c = w.mode === 'container'
       ? { stage: 'simulate', cmd: 'ctr:make', args: ['-C', dir, `SIM=${simId}`], cwd: dir, ctrEnv: envv }
       : { stage: 'simulate', cmd: 'make', args: ['-C', dir, `SIM=${simId}`], cwd: dir };

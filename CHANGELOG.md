@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.17.1
+- **The tools image is published:** `ghcr.io/engineerwaseem121-dot/eda-tools:1.0.0` is public. A new user with only Docker installed gets it automatically on the first run (tested: download, smoke test, SV, UVM and cocotb runs).
+- **cocotb in folders with spaces** (for example `My Projects`): the generated Makefile and the results file now use paths relative to `cocotb/`, because GNU make splits paths at spaces. Regenerate the cocotb testbench to get it.
+
 ## 0.17.0
 - **A standard project structure.** `design/` for the RTL, `testplan/` for `testplan.yaml` and `testplan.xlsx`, `tb/`, `cocotb/`, and a UVM environment split into `uvm/tb`, `agent`, `sequences`, `env`, `tests` and `scripts`. See *Project structure* in the README.
   - **DV: Select DUT** offers *Move RTL to design/* when the RTL sits in the project folder (open editors follow, and `dvflow.json` is updated).
