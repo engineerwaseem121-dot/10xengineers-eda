@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.18.1
+- **A new README:** shorter and clearer (840 → 153 lines). It covers highlights, a 4-step start, a visual walkthrough, the features with screenshots, the library, the supported tools, the commands and troubleshooting.
+- The full feature reference moved to [docs/REFERENCE.md](docs/REFERENCE.md). Release steps moved to [docs/MAINTAINERS.md](docs/MAINTAINERS.md).
+- **Help → Welcome → 10xEngineers EDA** has new steps: *Start from the design library* and *Write expected behaviour*. It also explains that the tools download by themselves, and that Select DUT identifies the design and says why.
+
 ## 0.18.0
 - **Design library: 106 designs, each with SPEC.md and RTL proven against it** by its own self-check. It covers gates, arithmetic, mux/demux, encoders/decoders, codes (parity, CRC, Gray, Hamming, BCD), ALUs and datapath, flip-flops and shifters, counters (LFSR, PC), memories and register files, FIFOs, state machines, and protocol blocks (APB, AHB-Lite, AXI4-Lite, AXI-Stream, Wishbone, SPI, I²C, UART). **DV: New Design from Library** and `dvflow new` / `dvflow library` start a project from any of them.
 - **Automatic identification with reasons:** ports, widths, name and code are scored, and protocol interfaces are recognised. On the library 106/106 are right, and on the RTLLM benchmark 47/49. DV: Select DUT shows the suggestion and why.

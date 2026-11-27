@@ -2,7 +2,7 @@
   "name": "10xengineer-eda",
   "displayName": "10xEngineers EDA: Verilog, SystemVerilog & UVM Verification Suite",
   "description": "All-in-one Verilog, SystemVerilog and UVM design-verification suite. Install Docker and press Run: the open-source tools (Icarus, Verilator with UVM, Yosys, cocotb) download by themselves, no simulator or license needed. Generates SV, UVM and cocotb testbenches from your RTL, runs regressions (Questa and VCS too), and adds a waveform viewer with decoders and X-trace, coverage, Excel test plans, formal, synthesis and sign-off. One extension instead of ten.",
-  "version": "0.18.0",
+  "version": "0.18.1",
   "publisher": "WaseemAbbas",
   "repository": { "type": "git", "url": "https://github.com/engineerwaseem121-dot/10xengineers-eda.git" },
   "bugs": { "url": "https://github.com/engineerwaseem121-dot/10xengineers-eda/issues" },
@@ -289,17 +289,133 @@
       {
         "id": "tenxDebug.gettingStarted",
         "title": "10xEngineers EDA: from one RTL file to a verified design",
-        "description": "Take a single Verilog/SystemVerilog file to a self-checking testbench, UVM, a regression dashboard and a testbench-quality score. No simulator install needed.",
+        "description": "From a single Verilog/SystemVerilog file to self-checking SV, UVM and cocotb testbenches, a regression dashboard, an Excel test plan and sign-off. Only Docker is needed; the tools download by themselves.",
         "steps": [
-          { "id": "demo", "title": "Try the demo (5 minutes)", "description": "Creates a ready-made project (a 4-bit adder with SV, UVM and cocotb testbenches) and opens a Demo Tour: one button per feature, each explaining what it does and why it matters.\n[Create Demo Project](command:tenxDebug.demo.create)", "media": { "markdown": "media/walkthrough/demo.md" }, "completionEvents": ["onCommand:tenxDebug.demo.create", "onCommand:tenxDebug.demo.tour"] },
-          { "id": "tools", "title": "Set up the open-source tools", "description": "Icarus, Verilator (with UVM), Yosys, SymbiYosys and cocotb run from a Docker image, so you install only Docker.\n[Set Up Open-Source Toolchain](command:tenxDebug.toolchain.setup)", "media": { "markdown": "media/walkthrough/tools.md" }, "completionEvents": ["onCommand:tenxDebug.toolchain.setup"] },
-          { "id": "dut", "title": "Select your DUT", "description": "Open your RTL file, then pick the top module and the template that matches what it does (the suggested one is first).\n[DV: Select DUT](command:tenxDebug.dv.selectDut)", "media": { "markdown": "media/walkthrough/dut.md" }, "completionEvents": ["onCommand:tenxDebug.dv.selectDut"] },
-          { "id": "generate", "title": "Generate the testbenches", "description": "One click creates a self-checking SystemVerilog testbench, a full UVM environment and a test plan with requirements.\n[DV: Generate Testbench](command:tenxDebug.dv.generateTestbench)", "media": { "markdown": "media/walkthrough/generate.md" }, "completionEvents": ["onCommand:tenxDebug.dv.generateTestbench"] },
-          { "id": "run", "title": "Run a regression", "description": "Pick the simulator (Icarus, Verilator, Questa, VCS), the suite and the seeds. Turn on code coverage to see what the tests never exercise.\n[DV: Run Regression](command:tenxDebug.dv.runRegression)", "media": { "markdown": "media/walkthrough/run.md" }, "completionEvents": ["onCommand:tenxDebug.dv.runRegression", "onCommand:tenxDebug.dv.runTest"] },
-          { "id": "dashboard", "title": "Explore the dashboard", "description": "Click any run for its log and waveform, compare runs in History, check traceability, and press Ctrl+K to search.\n[DV: Open Dashboard](command:tenxDebug.dv.openDashboard)", "media": { "markdown": "media/walkthrough/dashboard.md" }, "completionEvents": ["onCommand:tenxDebug.dv.openDashboard"] },
-          { "id": "uvm", "title": "See and run the UVM testbench", "description": "View the generated UVM architecture, then run the UVM tests on Verilator with no license.\n[UVM: Show Architecture Diagram](command:tenxDebug.uvmArchitecture)", "media": { "markdown": "media/walkthrough/uvm.md" }, "completionEvents": ["onCommand:tenxDebug.uvmArchitecture"] },
-          { "id": "signoff", "title": "Synthesize, gate-level simulate and prove", "description": "Synthesis (latches, logic depth), logic equivalence, gate-level simulation of your testbench on the netlist, and a formal proof that the DUT matches the spec for every input. All open-source, in one click.\n[DV: Sign-off Check](command:tenxDebug.dv.signoff)", "media": { "markdown": "media/walkthrough/signoff.md" }, "completionEvents": ["onCommand:tenxDebug.dv.signoff", "onCommand:tenxDebug.dv.formalProve"] },
-          { "id": "quality", "title": "Measure testbench quality", "description": "Passing tests don't prove the testbench would catch a bug. Mutation testing plants small bugs in copies of the DUT and reports which ones the tests miss.\n[DV: Mutation Test](command:tenxDebug.dv.mutate)", "media": { "markdown": "media/walkthrough/quality.md" }, "completionEvents": ["onCommand:tenxDebug.dv.mutate"] }
+          {
+            "id": "demo",
+            "title": "Try the demo (5 minutes)",
+            "description": "Creates a ready-made project (a 4-bit adder with SV, UVM and cocotb testbenches) and opens a Demo Tour: one button per feature, each explaining what it does and why it matters.\n[Create Demo Project](command:tenxDebug.demo.create)",
+            "media": {
+              "markdown": "media/walkthrough/demo.md"
+            },
+            "completionEvents": [
+              "onCommand:tenxDebug.demo.create",
+              "onCommand:tenxDebug.demo.tour"
+            ]
+          },
+          {
+            "id": "library",
+            "title": "Or start from the design library",
+            "description": "106 designs, from gates to AXI, each with a spec and RTL proven against it. Pick one to get the RTL, SPEC.md, the testbenches and the test plan, ready to run.\n[DV: New Design from Library](command:tenxDebug.dv.newFromLibrary)",
+            "media": {
+              "markdown": "media/walkthrough/library.md"
+            },
+            "completionEvents": [
+              "onCommand:tenxDebug.dv.newFromLibrary"
+            ]
+          },
+          {
+            "id": "tools",
+            "title": "Get the simulation tools (automatic)",
+            "description": "Install Docker and start it. The first run downloads Icarus, Verilator with UVM, Yosys, SymbiYosys and cocotb in one image, checks it, and reuses it after that. Tools you already have installed are used first.\n[DV: Check Tools](command:tenxDebug.dv.doctor)",
+            "media": {
+              "markdown": "media/walkthrough/tools.md"
+            },
+            "completionEvents": [
+              "onCommand:tenxDebug.dv.doctor",
+              "onCommand:tenxDebug.toolchain.setup"
+            ]
+          },
+          {
+            "id": "dut",
+            "title": "Select your DUT: it is identified for you",
+            "description": "Open your RTL file and run DV: Select DUT. The extension works out what the design is (adder, mux, FIFO, ALU, APB slave…) from its ports and code, suggests the template, and tells you why.\n[DV: Select DUT](command:tenxDebug.dv.selectDut)",
+            "media": {
+              "markdown": "media/walkthrough/dut.md"
+            },
+            "completionEvents": [
+              "onCommand:tenxDebug.dv.selectDut"
+            ]
+          },
+          {
+            "id": "behaviour",
+            "title": "Write expected behaviour (custom designs)",
+            "description": "For an ALU, a state machine or any design without a template, write each output as an expression of the inputs, for example op == 0 ? a + b : a - b. Every field is checked as you type, and an AI draft is optional.\n[DV: Write Expected Behaviour](command:tenxDebug.dv.writeBehaviour)",
+            "media": {
+              "markdown": "media/walkthrough/behaviour.md"
+            },
+            "completionEvents": [
+              "onCommand:tenxDebug.dv.writeBehaviour"
+            ]
+          },
+          {
+            "id": "generate",
+            "title": "Generate the testbenches",
+            "description": "One click creates a self-checking SystemVerilog testbench, a full UVM environment and a test plan with requirements.\n[DV: Generate Testbench](command:tenxDebug.dv.generateTestbench)",
+            "media": {
+              "markdown": "media/walkthrough/generate.md"
+            },
+            "completionEvents": [
+              "onCommand:tenxDebug.dv.generateTestbench"
+            ]
+          },
+          {
+            "id": "run",
+            "title": "Run a regression",
+            "description": "Pick the simulator (Icarus, Verilator, Questa, VCS), the suite and the seeds. Turn on code coverage to see what the tests never exercise.\n[DV: Run Regression](command:tenxDebug.dv.runRegression)",
+            "media": {
+              "markdown": "media/walkthrough/run.md"
+            },
+            "completionEvents": [
+              "onCommand:tenxDebug.dv.runRegression",
+              "onCommand:tenxDebug.dv.runTest"
+            ]
+          },
+          {
+            "id": "dashboard",
+            "title": "Explore the dashboard",
+            "description": "Click any run for its log and waveform, compare runs in History, check traceability, and press Ctrl+K to search.\n[DV: Open Dashboard](command:tenxDebug.dv.openDashboard)",
+            "media": {
+              "markdown": "media/walkthrough/dashboard.md"
+            },
+            "completionEvents": [
+              "onCommand:tenxDebug.dv.openDashboard"
+            ]
+          },
+          {
+            "id": "uvm",
+            "title": "See and run the UVM testbench",
+            "description": "View the generated UVM architecture, then run the UVM tests on Verilator with no license.\n[UVM: Show Architecture Diagram](command:tenxDebug.uvmArchitecture)",
+            "media": {
+              "markdown": "media/walkthrough/uvm.md"
+            },
+            "completionEvents": [
+              "onCommand:tenxDebug.uvmArchitecture"
+            ]
+          },
+          {
+            "id": "signoff",
+            "title": "Synthesize, gate-level simulate and prove",
+            "description": "Synthesis (latches, logic depth), logic equivalence, gate-level simulation of your testbench on the netlist, and a formal proof that the DUT matches the spec for every input. All open-source, in one click.\n[DV: Sign-off Check](command:tenxDebug.dv.signoff)",
+            "media": {
+              "markdown": "media/walkthrough/signoff.md"
+            },
+            "completionEvents": [
+              "onCommand:tenxDebug.dv.signoff",
+              "onCommand:tenxDebug.dv.formalProve"
+            ]
+          },
+          {
+            "id": "quality",
+            "title": "Measure testbench quality",
+            "description": "Passing tests don't prove the testbench would catch a bug. Mutation testing plants small bugs in copies of the DUT and reports which ones the tests miss.\n[DV: Mutation Test](command:tenxDebug.dv.mutate)",
+            "media": {
+              "markdown": "media/walkthrough/quality.md"
+            },
+            "completionEvents": [
+              "onCommand:tenxDebug.dv.mutate"
+            ]
+          }
         ]
       }
     ],
