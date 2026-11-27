@@ -107,9 +107,9 @@ function register(context) {
     if (!mods.length) { vscode.window.showErrorMessage('No module found in ' + path.basename(file)); return; }
     const mod = mods.length === 1 ? mods[0] : (await vscode.window.showQuickPick(mods.map(m => ({ label: m.name, description: `${m.ports.length} ports`, m })), { placeHolder: 'Top module (DUT)' }) || {}).m;
     if (!mod) return;
-    // project folder: parent of rtl/ when the file lives in rtl/, else the file's folder
+    // project folder: parent of design/ (or rtl/, src/, hdl/) when the file lives there, else the file's folder
     let root = path.dirname(file);
-    if (/^(rtl|src|hdl)$/i.test(path.basename(root))) root = path.dirname(root);
+    if (/^(design|rtl|src|hdl)$/i.test(path.basename(root))) root = path.dirname(root);
     const pr = await vscode.window.showInputBox({ prompt: 'DV project folder (dvflow.json, testbench, runs/ go here)', value: root, ignoreFocusOut: true });
     if (!pr) return;
     root = pr;

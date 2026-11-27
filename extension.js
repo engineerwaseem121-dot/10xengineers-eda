@@ -430,6 +430,9 @@ class WaveTree {
 
 /* ------------------------------------------------------------------ activate */
 function activate(context) {
+  // end-to-end tests only: a test module may wrap this extension's dialogs (prompts are answered automatically).
+  // Inert unless the variable is set when VS Code starts; never set for users.
+  if (process.env.TENX_E2E_HOOK) { try { require(process.env.TENX_E2E_HOOK)(vscode); } catch (e) { console.error('[10x e2e hook]', e); } }
   ctx = context;
   const fsmIndex = new FsmIndex();
   const symIndex = new SymbolIndex();

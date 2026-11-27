@@ -531,6 +531,21 @@ function register(context, deps) {
     }
   }, { providedCodeActionKinds: [vscode.CodeActionKind.QuickFix] }));
   sub(vscode.commands.registerCommand('tenxDebug.lint.waive', async (uri, line, rule, message, scope) => {
+    if (!(uri instanceof vscode.Uri)) {
+      // run from the Command Palette: waive a lint finding on the cursor's line (pick one when there are several)
+      const ed = vscode.window.activeTextEditor;
+      if (!ed) { vscode.window.showInformationMessage('Open an RTL file and put the cursor on a lint finding, then run "Lint: Waive Finding" (or use the light-bulb quick fix).'); return; }
+      const cl = ed.selection.active.line;
+      const ours = d => d.source && /10x FSM|verilator|iverilog|slang|10x|ghdl|UVM/i.test(d.source);
+      let ds = vscode.languages.getDiagnostics(ed.document.uri).filter(ours);
+      const here = ds.filter(d => d.range.start.line <= cl && d.range.end.line >= cl);
+      if (here.length) ds = here;
+      if (!ds.length) { vscode.window.showInformationMessage(`No lint finding in ${path.basename(ed.document.fileName)} to waive. Run "Lint Current File" first.`); return; }
+      const pick = ds.length === 1 ? { d: ds[0] } : await vscode.window.showQuickPick(ds.map(d => ({ label: `line ${d.range.start.line + 1}: ${d.message.slice(0, 80)}`, description: String(typeof d.code === 'object' && d.code ? d.code.value : d.code || ''), d })), { placeHolder: 'Lint finding to waive' });
+      if (!pick) return;
+      uri = ed.document.uri; line = pick.d.range.start.line; message = pick.d.message; scope = scope || 'line';
+      rule = typeof pick.d.code === 'object' && pick.d.code ? String(pick.d.code.value) : String(pick.d.code || '*');
+    }
     const f = waiverFile();
     if (!f) { vscode.window.showWarningMessage('Open a workspace folder to store waivers.'); return; }
     const reason = await vscode.window.showInputBox({ prompt: `Reason for waiving ${rule}`, placeHolder: 'e.g. intentional truncation, reviewed with the designer', validateInput: v => v.trim().length < 4 ? 'Give a short reason (it is kept for reviews)' : null });

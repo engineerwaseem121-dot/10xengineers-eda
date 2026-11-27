@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.17.3
+Found by a new end-to-end test that runs all 74 commands in a real VS Code (`test/e2e/`). After these fixes: 71 pass, 3 are skipped by design, and the dashboard tabs and waveform viewer show 0 JavaScript errors.
+- **DV: Select DUT** with the RTL in `design/` now proposes the project folder (the parent), not `design/` itself. It used to create a second project inside `design/`.
+- **UVM: Validate Testbench** understands the 0.17 folder layout (`uvm/tb`, `agent`, `sequences`, `env`, `tests`). It used to report 11 missing files for a correct environment.
+- **Generate UVM Environment** opens the tests file in `tests/`. It used to fail after writing the files.
+- **Schematic: Synthesize with Yosys** uses Yosys from the Docker image when none is installed. The default setting value `yosys` used to block that fallback.
+- **Lint: Waive Finding** from the Command Palette waives the finding at the cursor (or lets you pick one). It used to crash.
+
 ## 0.17.2
 - **No more dead end when there is no project.** Every DV command (and **Open Demo Tour**) used to stop with "No dvflow.json found" when the open folder had no DV project. It now says why and offers the way forward: **Select DUT in this file** (when an RTL file is open), **Create Demo Project** or **Open the demo project** (reopens the one you made before), and **Open Folder…**.
 - The extension now starts when a folder contains `dvflow.json`, so the Demo Tour opens by itself when the demo folder is opened.

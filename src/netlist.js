@@ -135,7 +135,7 @@ function runYosys(files, top, out, yosysBin) {
   return new Promise((resolve, reject) => cp.execFile(yosysBin || 'yosys', ['-q', '-p', script], { timeout: 180000, maxBuffer: 1 << 24, windowsHide: true }, (err, so, se) => {
     if (!err && fs.existsSync(out)) return resolve(out);
     // yosys not installed: use the container toolchain when it is set up and the files are mounted
-    if (err && err.code === 'ENOENT' && !yosysBin) {
+    if (err && err.code === 'ENOENT' && (!yosysBin || yosysBin === 'yosys')) {
       try {
         const ct = require('./dv/container');
         if (ct.canRun(files.concat([out]))) {

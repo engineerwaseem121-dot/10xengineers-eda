@@ -450,7 +450,8 @@ function register(context, h) {
     out.appendLine(`[UVM] Generated ${written} file(s) in ${outDir}`);
     out.appendLine(`[UVM] clk=${res.summary.clk} rst=${res.summary.rst} (active-${res.summary.activeLow ? 'low' : 'high'}) inputs=[${res.summary.inputs.join(', ')}] outputs=[${res.summary.outputs.join(', ')}] handshake=${res.summary.handshake}`);
     res.warnings.forEach(w => out.appendLine('[UVM] ⚠ ' + w));
-    const doc = await vscode.workspace.openTextDocument(path.join(outDir, `${name}_tests.sv`));
+    const testsFile = [path.join(outDir, 'tests', `${name}_tests.sv`), path.join(outDir, `${name}_tests.sv`)].find(p => fs.existsSync(p));
+    const doc = await vscode.workspace.openTextDocument(testsFile || path.join(outDir, 'README.md'));
     await vscode.window.showTextDocument(doc);
     const actions = features.questa ? ['Run in Questa', 'Show details'] : ['Show details'];
     const a = await vscode.window.showInformationMessage(`UVM environment '${name}' generated (${written} files)${res.warnings.length ? ` with ${res.warnings.length} warning(s)` : ''}.`, ...actions);

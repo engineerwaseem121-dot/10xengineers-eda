@@ -719,8 +719,16 @@ function register(context, h) {
   async function validateTb(uri) {
     const dir = await pickTbDir(uri);
     if (!dir) return;
-    const svs = fs.readdirSync(dir).filter(f => /\.(sv|svh|v)$/i.test(f));
+    // every SV file of the environment, sub-folders included (tb/, agent/, sequences/, env/, tests/); paths relative to dir
+    const walkSv = (d, rel, depth) => fs.readdirSync(d, { withFileTypes: true }).flatMap(e => {
+      if (e.isDirectory()) return depth < 3 && !/^(work|obj_dir|_old_flat_layout|node_modules|\..*)$/.test(e.name) ? walkSv(path.join(d, e.name), rel + e.name + '/', depth + 1) : [];
+      return /\.(sv|svh|v)$/i.test(e.name) ? [rel + e.name] : [];
+    });
+    const svs = walkSv(dir, '', 0);
     const texts = Object.fromEntries(svs.map(f => [f, fs.readFileSync(path.join(dir, f), 'utf8')]));
+    const listFile = ['files.f', 'src_files.list'].map(f => path.join(dir, f)).find(f => fs.existsSync(f));
+    const incdirs = ['.'].concat(listFile ? [...fs.readFileSync(listFile, 'utf8').matchAll(/^\s*\+incdir\+(\S+)/gm)].map(m => m[1]) : []);
+    const findInc = f => incdirs.map(d => path.resolve(dir, d, f)).find(p => fs.existsSync(p));
     const results = [];
     const ok = (m) => results.push(['PASS', m]); const bad = (m) => results.push(['FAIL', m]); const warn = (m) => results.push(['WARN', m]);
     const list = ['files.f', 'src_files.list'].map(f => path.join(dir, f)).find(f => fs.existsSync(f));
@@ -735,10 +743,11 @@ function register(context, h) {
     pkg ? ok('Package: ' + pkg) : bad('No package file (…_pkg.sv)');
     if (pkg) {
       const inc = [...texts[pkg].matchAll(/`include\s+"([^"]+)"/g)].map(m => m[1]).filter(f => f !== 'uvm_macros.svh');
-      const miss = inc.filter(f => !fs.existsSync(path.join(dir, f)));
+      const miss = inc.filter(f => !findInc(f));
       miss.length ? bad('Package includes missing files: ' + miss.join(', ')) : ok(`Package includes ${inc.length} files`);
       /import\s+uvm_pkg::\*/.test(texts[pkg]) ? ok('Package imports uvm_pkg') : bad('Package does not import uvm_pkg::*');
-      const classFiles = svs.filter(f => /\bclass\s+\w+/.test(texts[f]) && f !== pkg && !inc.includes(f));
+      const incBase = new Set(inc.map(f => path.basename(f)));
+      const classFiles = svs.filter(f => /\bclass\s+\w+/.test(texts[f]) && f !== pkg && !incBase.has(path.basename(f)));
       if (classFiles.length) warn('Class files not included by the package: ' + classFiles.join(', '));
     }
     const all = Object.entries(texts).map(([f, text]) => ({ uri: vscode.Uri.file(path.join(dir, f)).toString(), text }));
