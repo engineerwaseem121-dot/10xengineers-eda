@@ -1,0 +1,16 @@
+{
+  "name": "valid_ready_pipeline",
+  "category": "protocols",
+  "expected_template": "pipeline",
+  "protocol": null,
+  "sequential": true,
+  "clock": "clk",
+  "reset": "rst_n",
+  "reset_active_low": true,
+  "summary": "Two-stage valid/ready pipeline register, data unchanged, full throughput",
+  "check": "PASS",
+  "behavior": {
+    "latency": 2,
+    "source": "latency from SPEC.md"
+  }
+}

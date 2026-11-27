@@ -1,0 +1,12 @@
+{
+  "name": "add_sub8",
+  "category": "arithmetic",
+  "expected_template": "add_sub",
+  "protocol": null,
+  "sequential": false,
+  "clock": null,
+  "reset": null,
+  "reset_active_low": null,
+  "summary": "8-bit adder/subtractor with mode input, carry out and signed overflow",
+  "check": "PASS"
+}

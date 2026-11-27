@@ -302,7 +302,7 @@ async function regress(root, o) {
   // "custom" template: refuse to run while the reference model is still the generated placeholder
   if (cfg.template === 'custom') {
     const ph = Object.entries((cfg.behavior && cfg.behavior.checks) || {}).filter(([, v]) => /\/\*\s*expected .* from in_\*/.test(String(v))).map(([k]) => k);
-    if (ph.length) throw Object.assign(new Error(`dvflow.json uses the "custom" template but the reference model is not written yet (behavior.checks for ${ph.join(', ')} are placeholders), so every check would fail. Either write the expected values in dvflow.json → behavior.checks (and model_step for state), or run "DV: Select DUT" again and pick the template that matches the DUT (e.g. "adder"). Then regenerate the testbench.`), { exitCode: 3 });
+    if (ph.length) throw Object.assign(new Error(`dvflow.json uses the "custom" template but the reference model is not written yet (behavior.checks for ${ph.join(', ')} are placeholders), so every check would fail. Write them with "DV: Write Expected Behaviour" (a form that checks each expression as you type), or edit dvflow.json → behavior.checks (and model_step for state), or run "DV: Select DUT" again and pick the template that matches the DUT (e.g. "adder"). Then regenerate the testbench.`), { exitCode: 3 });
   }
   if (o.bug) {
     if (!cfg.bug_injection || !cfg.bug_injection.files) throw Object.assign(new Error('This project has no "bug_injection" section in dvflow.json.'), { exitCode: 3 });

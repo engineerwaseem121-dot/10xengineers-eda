@@ -1,0 +1,12 @@
+{
+  "name": "demux1to4",
+  "category": "mux_demux",
+  "expected_template": "demux",
+  "protocol": null,
+  "sequential": false,
+  "clock": null,
+  "reset": null,
+  "reset_active_low": null,
+  "summary": "1:4 demultiplexer, WIDTH-bit data to y0..y3 (WIDTH=8)",
+  "check": "PASS"
+}

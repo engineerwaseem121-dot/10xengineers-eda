@@ -1,0 +1,12 @@
+{
+  "name": "",
+  "category": "",
+  "expected_template": "",
+  "protocol": null,
+  "sequential": ,
+  "clock": null,
+  "reset": null,
+  "reset_active_low": null,
+  "summary": "",
+  "check": "PENDING"
+}

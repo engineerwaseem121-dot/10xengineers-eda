@@ -22,7 +22,8 @@ const cp = require('child_process');
 // Verilator obj_dir. Its generated Makefile refuses any absolute path with a space (make -C cwd), so in the container
 // such projects compile on the container filesystem (/tmp/tenx-obj/<hash>) and the binary runs there.
 /** parallel C++ jobs for Verilator: DVFLOW_VERILATOR_JOBS, else half the cores, at most 4 (UVM builds are memory-hungry) */
-const vjobs = () => String(Number(process.env.DVFLOW_VERILATOR_JOBS) > 0 ? Number(process.env.DVFLOW_VERILATOR_JOBS) : Math.min(4, Math.max(1, Math.floor(require('os').cpus().length / 2))));
+// heavy = UVM: each C++ job of a UVM build can take 1–2 GB, and WSL/Docker on a laptop often has ~8 GB in total
+const vjobs = heavy => String(Number(process.env.DVFLOW_VERILATOR_JOBS) > 0 ? Number(process.env.DVFLOW_VERILATOR_JOBS) : Math.min(heavy ? 2 : 4, Math.max(1, Math.floor(require('os').cpus().length / 2))));
 const vobj = (root, dir, container) => {
   if (container && /s/.test(path.resolve(dir))) return { ctr: true, dir: '/tmp/tenx-obj/' + require('crypto').createHash('sha1').update(path.resolve(dir)).digest('hex').slice(0, 12) };
   return { ctr: false, dir: relRoot(root, path.join(dir, 'obj_dir')) };
@@ -269,7 +270,7 @@ function compileErrors(log) {
   const out = [];
   let m;
   const res = [
-    [/^(.+?):(\d+):(?:\d+:)?\s*(error|syntax error|warning|sorry):\s*(.*)$/gim, (m) => ({ file: m[1].trim(), line: +m[2], severity: /warn/i.test(m[3]) ? 'warning' : 'error', message: m[4] })],
+    [/^(.+?):(\d+):(?:\d+:)?\s*(error|syntax error|warning|sorry):\s*(.*)$/gim, (m) => ({ file: m[1].trim(), line: +m[2], severity: /warn|sorry/i.test(m[3]) ? 'warning' : 'error', message: m[4] })],   // Icarus "sorry:" is often only a notice (e.g. loops in always_comb); a real failure shows in the exit code
     [/\*\* (Error|Warning)[^:]*:\s*(?:\([^)]*\)\s*)?(\S.*?)\((\d+)\):\s*(.*)$/gm, (m) => ({ file: m[2].trim(), line: +m[3], severity: m[1].toLowerCase(), message: m[4] })],
     [/^%(Error|Warning)(?:-[A-Z0-9_]+)?:\s*(.+?):(\d+):(?:\d+:)?\s*(.*)$/gm, (m) => ({ file: m[2].trim(), line: +m[3], severity: m[1].toLowerCase(), message: m[4] })],
     [/^(.+?\.vhdl?):(\d+):(\d+):\s*(.*)$/gim, (m) => ({ file: m[1].trim(), line: +m[2], severity: /warning/i.test(m[4]) ? 'warning' : 'error', message: m[4] })]

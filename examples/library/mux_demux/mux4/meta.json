@@ -1,0 +1,12 @@
+{
+  "name": "mux4",
+  "category": "mux_demux",
+  "expected_template": "mux",
+  "protocol": null,
+  "sequential": false,
+  "clock": null,
+  "reset": null,
+  "reset_active_low": null,
+  "summary": "4:1 multiplexer with WIDTH-bit inputs d0..d3 (WIDTH=8)",
+  "check": "PASS"
+}

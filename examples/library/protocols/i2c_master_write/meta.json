@@ -1,0 +1,12 @@
+{
+  "name": "i2c_master_write",
+  "category": "protocols",
+  "expected_template": "custom",
+  "protocol": "i2c",
+  "sequential": true,
+  "clock": "clk",
+  "reset": "rst_n",
+  "reset_active_low": true,
+  "summary": "Simplified I2C master writing one byte: START, addr+W, ACK, data, ACK, STOP, nack flag",
+  "check": "PASS"
+}

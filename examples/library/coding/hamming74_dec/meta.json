@@ -1,0 +1,12 @@
+{
+  "name": "hamming74_dec",
+  "category": "coding",
+  "expected_template": "hamming",
+  "protocol": null,
+  "sequential": false,
+  "clock": null,
+  "reset": null,
+  "reset_active_low": null,
+  "summary": "Hamming(7,4) decoder with single-bit error correction",
+  "check": "PASS"
+}

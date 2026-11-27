@@ -1,0 +1,12 @@
+{
+  "name": "round_robin_arbiter4",
+  "category": "fsm",
+  "expected_template": "fsm",
+  "protocol": null,
+  "sequential": true,
+  "clock": "clk",
+  "reset": "rst_n",
+  "reset_active_low": true,
+  "summary": "4-requester round-robin arbiter with registered one-hot grant",
+  "check": "PASS"
+}

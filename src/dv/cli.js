@@ -164,6 +164,7 @@ async function main() {
       const r = require('./demo').init(root, a.file, { top: a.top, mode: a.mode || 'all', engineSrc: path.resolve(__dirname, '..'), runtime: process.env.DVFLOW_RUNTIME || (process.versions.electron ? process.execPath : undefined) });
       log(`dvflow.json: ${r.cfg.dut.top}, template "${r.cfg.template}", ${r.model.scenarios.length} scenarios, ${r.model.bins.length} coverage bins`);
       log(`wrote ${r.files.length} file(s): ${r.files.filter(f => !f.startsWith('.dvflow')).join(', ')}`);
+      if (r.cfg.note) log('note: ' + r.cfg.note);
       return 0;
     }
     case 'signoff': {
@@ -205,6 +206,23 @@ async function main() {
       log(`mounts:    ${s.mounts.join(', ')}`);
       if (s.imageInfo.present) Object.entries(s.imageInfo.tools || {}).forEach(([k, v]) => log(`  ${k.padEnd(10)} ${v || '-'}`));
       return s.engine.error || !s.imageInfo.present ? 2 : 0;
+    }
+    case 'library': {
+      // dvflow library [--category c]   list the design library
+      const L = require('./library');
+      const all = L.list(path.resolve(__dirname, '..', '..')).filter(d => !a.category || d.category === a.category);
+      for (const d of all) log(`${d.category.padEnd(14)} ${d.name.padEnd(26)} ${String(d.meta.expected_template).padEnd(16)} ${d.title}`);
+      log(`${all.length} designs`);
+      return 0;
+    }
+    case 'new': {
+      // dvflow new --design <name> --root <folder>   start a project from a library design (RTL + SPEC.md + testbenches)
+      const L = require('./library');
+      const d = L.list(path.resolve(__dirname, '..', '..')).find(x => x.name === a.design);
+      if (!d) { log(`unknown design '${a.design}' (see: dvflow library)`); return 3; }
+      const r = L.createProject(path.resolve(__dirname, '..', '..'), d, root);
+      log(`${d.name}: ${r.files.length} files in ${r.root} (template ${r.template})`);
+      return 0;
     }
     case 'clean': runner.clean(root); log('removed runs/'); return 0;
     default:

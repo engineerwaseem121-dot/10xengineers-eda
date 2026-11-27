@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.18.0
+- **Design library: 106 designs, each with SPEC.md and RTL proven against it** by its own self-check. It covers gates, arithmetic, mux/demux, encoders/decoders, codes (parity, CRC, Gray, Hamming, BCD), ALUs and datapath, flip-flops and shifters, counters (LFSR, PC), memories and register files, FIFOs, state machines, and protocol blocks (APB, AHB-Lite, AXI4-Lite, AXI-Stream, Wishbone, SPI, I²C, UART). **DV: New Design from Library** and `dvflow new` / `dvflow library` start a project from any of them.
+- **Automatic identification with reasons:** ports, widths, name and code are scored, and protocol interfaces are recognised. On the library 106/106 are right, and on the RTLLM benchmark 47/49. DV: Select DUT shows the suggestion and why.
+- **12 new templates:** logic gate, mux, demux, encoder, priority encoder, decoder, comparator, subtractor, adder-subtractor, multiplier, binary ↔ Gray converter, parity. The FIFO template detects first-word-fall-through designs.
+- **Custom designs run everywhere:**
+  - Expected values are written with plain port names (`a_real + b_real`), checked, and run in the SV, UVM and cocotb testbenches; cocotb used to have only a placeholder.
+  - **DV: Write Expected Behaviour** is a form that checks each expression as you type, with an optional AI draft for review.
+  - A project never fails to start because the guessed template does not fit: it starts as custom and says why.
+- **Expression engine** (`src/dv/expr.js`): SystemVerilog sizing and signedness rules, translated to Python, and checked against Icarus.
+- **Fixes:**
+  - Icarus "sorry: constant selects in always_*" notices no longer stop a build; loops in `always_comb` are common.
+  - UVM builds use at most 2 parallel Verilator jobs, after laptops ran out of memory.
+
 ## 0.17.3
 Found by a new end-to-end test that runs all 74 commands in a real VS Code (`test/e2e/`). After these fixes: 71 pass, 3 are skipped by design, and the dashboard tabs and waveform viewer show 0 JavaScript errors.
 - **DV: Select DUT** with the RTL in `design/` now proposes the project folder (the parent), not `design/` itself. It used to create a second project inside `design/`.

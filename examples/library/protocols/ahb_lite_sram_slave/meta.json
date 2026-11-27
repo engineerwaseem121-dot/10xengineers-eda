@@ -1,0 +1,12 @@
+{
+  "name": "ahb_lite_sram_slave",
+  "category": "protocols",
+  "expected_template": "custom",
+  "protocol": "ahb",
+  "sequential": true,
+  "clock": "hclk",
+  "reset": "hresetn",
+  "reset_active_low": true,
+  "summary": "AHB-Lite zero-wait-state slave with 16x32-bit memory and byte/halfword/word writes",
+  "check": "PASS"
+}

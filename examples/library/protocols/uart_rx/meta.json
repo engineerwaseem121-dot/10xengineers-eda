@@ -1,0 +1,12 @@
+{
+  "name": "uart_rx",
+  "category": "protocols",
+  "expected_template": "custom",
+  "protocol": "uart",
+  "sequential": true,
+  "clock": "clk",
+  "reset": "rst_n",
+  "reset_active_low": true,
+  "summary": "8N1 UART receiver with synchronizer, mid-bit sampling and framing-error detection",
+  "check": "PASS"
+}

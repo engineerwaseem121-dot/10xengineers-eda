@@ -1,0 +1,12 @@
+{
+  "name": "clock_divider",
+  "category": "sequential",
+  "expected_template": "custom",
+  "protocol": null,
+  "sequential": true,
+  "clock": "clk",
+  "reset": "rst_n",
+  "reset_active_low": true,
+  "summary": "Even clock divider (DIV=4 default) with 50% duty cycle",
+  "check": "PASS"
+}

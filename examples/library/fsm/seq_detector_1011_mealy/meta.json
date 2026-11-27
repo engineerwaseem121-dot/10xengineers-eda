@@ -1,0 +1,12 @@
+{
+  "name": "seq_detector_1011_mealy",
+  "category": "fsm",
+  "expected_template": "fsm",
+  "protocol": null,
+  "sequential": true,
+  "clock": "clk",
+  "reset": "rst_n",
+  "reset_active_low": true,
+  "summary": "Overlapping 1011 sequence detector, Mealy FSM (detected in the cycle of the last bit)",
+  "check": "PASS"
+}

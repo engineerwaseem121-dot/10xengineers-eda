@@ -1,4 +1,5 @@
 'use strict';
+const ET = require('./exprtemplates');
 /*
  * DUT templates -> verification model (reference model, checks, scenarios, bins, SVA).
  * The reference model is written from the approved behaviour spec (cfg.behavior), never from the RTL,
@@ -290,6 +291,9 @@ function shift(cfg, ports) {
 /* ====================================================================== valid/data pipeline (scoreboard + missing-transaction check) */
 function pipeline(cfg, ports) {
   const { r, get } = roles(ports, cfg);
+  // this model has no backpressure: a DUT with a ready input would sit stalled (ready held at 0), so say so instead of failing every check
+  const readyIn = ports.find(p => p.dir === 'input' && /ready/i.test(p.name));
+  if (readyIn) throw new Error(`the pipeline template does not drive '${readyIn.name}' (valid/ready backpressure is not modelled yet)`);
   get('in_valid', 'input', /^(in_valid|valid_in|vld_in|i_valid|valid_i|in_vld)$/i, 1);
   get('in_data', 'input', /^(in_data|data_in|din|i_data|data_i)$/i);
   get('out_valid', 'output', /^(out_valid|valid_out|vld_out|o_valid|valid_o)$/i, 1);
@@ -361,7 +365,8 @@ function fifo(cfg, ports, params) {
   const pv = k => (params[k] != null ? Number(params[k]) : null);
   const aw = ['ADDR_WIDTH', 'AW', 'ADDR_W', 'PTR_WIDTH', 'PTR_W', 'LOG2_DEPTH', 'DEPTH_LOG2'].map(pv).find(v => v != null && v > 0 && v < 20);
   const DEPTH = Number(b.depth != null ? b.depth : pv('DEPTH') || pv('FIFO_DEPTH') || pv('SIZE') || (aw ? 2 ** aw : cntW ? 2 ** (cntW - 1) : 8));
-  const fwft = !!b.fwft;
+  // first-word-fall-through: dout shows the head while not empty (from dvflow.json, else from the name: fwft / show-ahead / fall-through)
+  const fwft = b.fwft != null ? !!b.fwft : /fwft|show_?ahead|fall_?through/i.test(String((cfg.dut && cfg.dut.top) || ''));
   const AW = Math.max(1, Math.ceil(Math.log2(DEPTH)));
   const SW = AW + 1;                                       // fill level 0..DEPTH
   const D = `${SW}'d${DEPTH}`;
@@ -534,6 +539,8 @@ function memory(cfg, ports, params) {
 /* ====================================================================== custom (user-supplied model) */
 function custom(cfg, ports) {
   const b = cfg.behavior;
+  // combinational with written checks: the expression engine gives SV, UVM, formal and cocotb from the same expressions
+  if (!b.sequential && ET.checksWritten(cfg)) return ET.customExprModel(cfg, ports);
   const clkRst = new Set([cfg.clock && cfg.clock.name, cfg.reset && cfg.reset.name].filter(Boolean));
   const inputs = ports.filter(p => p.dir === 'input' && !clkRst.has(p.name)).map(p => ({ name: p.name, width: p.width || 1 }));
   const checks = Object.entries(b.checks || {}).map(([name, exp]) => ({ name, exp }));
@@ -560,11 +567,20 @@ const TEMPLATES = {
   pipeline: { label: 'Valid/data pipeline (scoreboard)', build: pipeline },
   fifo: { label: 'Synchronous FIFO (full/empty/count, overflow/underflow)', build: fifo },
   memory: { label: 'Single-port memory / RAM (write, read-back, reset value)', build: memory },
+  ...Object.fromEntries(Object.keys(ET.TEMPLATE_SPECS).map(k => [k, { label: ET.LABELS[k], build: (c, p) => ET.build(k, c, p), expr: true }])),
   custom: { label: 'Custom (your reference model)', build: custom }
 };
 
-/** guess the template from the module name / ports */
-function guess(mod) {
+/** guess the template: the identifier (ports, widths, name, RTL body) when it names a template we have */
+function guess(mod, text) {
+  try {
+    const id = require('./identify').identify(mod, text || '');
+    if (TEMPLATES[id.template]) return id.template;
+    return 'custom';   // recognised (ALU, LFSR, PC, FSM, CRC, protocol block, …) but no automatic model: custom + its expected behaviour
+  } catch (e) { /* fall back to the name rules below */ }
+  return guessByName(mod);
+}
+function guessByName(mod) {
   const n = mod.name.toLowerCase();
   const names = mod.ports.map(p => p.name.toLowerCase());
   // a RAM has an address port (a FIFO does not) — check it first, since both have write/read enables

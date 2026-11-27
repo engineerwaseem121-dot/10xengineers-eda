@@ -1,0 +1,12 @@
+{
+  "name": "edge_detector",
+  "category": "sequential",
+  "expected_template": "custom",
+  "protocol": null,
+  "sequential": true,
+  "clock": "clk",
+  "reset": "rst_n",
+  "reset_active_low": true,
+  "summary": "Registered rising and falling edge detector with one-cycle pulses",
+  "check": "PASS"
+}

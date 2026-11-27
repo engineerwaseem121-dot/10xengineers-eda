@@ -1,0 +1,12 @@
+{
+  "name": "onehot_to_bin",
+  "category": "encode_decode",
+  "expected_template": "encoder",
+  "protocol": null,
+  "sequential": false,
+  "clock": null,
+  "reset": null,
+  "reset_active_low": null,
+  "summary": "Parameterized N-bit one-hot to binary encoder",
+  "check": "PASS"
+}

@@ -1,0 +1,18 @@
+{
+  "name": "abs8",
+  "category": "arithmetic",
+  "expected_template": "custom",
+  "protocol": null,
+  "sequential": false,
+  "clock": null,
+  "reset": null,
+  "reset_active_low": null,
+  "summary": "Absolute value of an 8-bit signed number (unsigned 8-bit result)",
+  "check": "PASS",
+  "behavior": {
+    "checks": {
+      "y": "a[7] ? -a : a"
+    },
+    "source": "written from SPEC.md"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "mux_param",
+  "category": "mux_demux",
+  "expected_template": "mux",
+  "protocol": null,
+  "sequential": false,
+  "clock": null,
+  "reset": null,
+  "reset_active_low": null,
+  "summary": "Parameterized N:1 multiplexer, N WIDTH-bit inputs packed in one vector (N=4, WIDTH=8)",
+  "check": "PASS"
+}

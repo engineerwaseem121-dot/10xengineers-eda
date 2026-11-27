@@ -1,0 +1,12 @@
+{
+  "name": "mux8",
+  "category": "mux_demux",
+  "expected_template": "mux",
+  "protocol": null,
+  "sequential": false,
+  "clock": null,
+  "reset": null,
+  "reset_active_low": null,
+  "summary": "8:1 multiplexer, packed 8*WIDTH-bit input vector (WIDTH=8)",
+  "check": "PASS"
+}

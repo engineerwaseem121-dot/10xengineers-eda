@@ -1,0 +1,12 @@
+{
+  "name": "register_file_2r1w",
+  "category": "memory",
+  "expected_template": "register_file",
+  "protocol": null,
+  "sequential": true,
+  "clock": "clk",
+  "reset": "rst_n",
+  "reset_active_low": true,
+  "summary": "8x8 register file, two combinational read ports, one write port, register 0 reads 0",
+  "check": "PASS"
+}

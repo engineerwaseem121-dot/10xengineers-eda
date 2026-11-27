@@ -1,0 +1,12 @@
+{
+  "name": "half_adder",
+  "category": "arithmetic",
+  "expected_template": "adder",
+  "protocol": null,
+  "sequential": false,
+  "clock": null,
+  "reset": null,
+  "reset_active_low": null,
+  "summary": "1-bit half adder (sum, carry)",
+  "check": "PASS"
+}

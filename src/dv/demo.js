@@ -23,7 +23,7 @@ function proposeConfig(root, file, top, o) {
   for (const m of text.matchAll(/\bmodule\s+(\w+)[\s\S]*?\bendmodule\b/g)) bodies[m[1]] = m[0];
   const instantiated = name => Object.entries(bodies).some(([n, b]) => n !== name && new RegExp('\\b' + name + '\\s+(#|\\w)').test(b.replace(/^module\s+\w+/, '')));
   const mod = (top && mods.find(m => m.name === top)) || mods.find(m => !instantiated(m.name)) || mods[mods.length - 1];
-  const tpl = o.template || guess(mod);
+  const tpl = o.template || guess(mod, fs.readFileSync(abs, 'utf8'));
   const c = hdl.classify(mod.ports);
   const seq = !!c.clk && tpl !== 'adder' && tpl !== 'latch';
   const cfg = {
@@ -39,8 +39,23 @@ function proposeConfig(root, file, top, o) {
   };
   cfg.suites = { smoke: ['smoke'], full: cfg.tests };
   const d = tbgen.resolveDut(tbgen.withDefaults(cfg), root, {}, f => fs.readFileSync(f, 'utf8'));
-  const m = tbgen.buildModel(tbgen.withDefaults(cfg), d.ports, d.paramValues);
+  let m, fallback = null;
+  try { m = tbgen.buildModel(tbgen.withDefaults(cfg), d.ports, d.paramValues); }
+  catch (e) {
+    // the suggested template cannot map these ports: never fail here — start as "custom" and say why
+    if (tpl === 'custom') throw e;
+    fallback = `template "${tpl}" does not fit ${mod.name} (${e.message.replace(/^template "[^"]*" cannot map the ports of \S+: /, '')}); started as "custom": write its expected behaviour with "DV: Write Expected Behaviour"`;
+    cfg.template = 'custom';
+    cfg.behavior = Object.assign({}, cfg.behavior, { sequential: !!c.clk, spec: fallback,
+      checks: Object.fromEntries(mod.ports.filter(p => p.dir === 'output').map(p => [p.name, `/* expected ${p.name} from in_* and m_* */ '0`])) });
+    cfg.tests = !!c.clk ? ['smoke', 'boundary', 'reset', 'random'] : ['smoke', 'boundary', 'random'];
+    cfg.suites = { smoke: ['smoke'], full: cfg.tests };
+    m = tbgen.buildModel(tbgen.withDefaults(cfg), d.ports, d.paramValues);
+  }
+  if (fallback) cfg.note = fallback;
   cfg.ports = m.roles || {};
+  // tests = the tests the template has scenarios for (a test without scenarios would run no checks and fail)
+  { const ts = [...new Set(m.scenarios.map(s => s.test).filter(Boolean))]; if (ts.length) { cfg.tests = ts; cfg.suites = { smoke: ts.includes('smoke') ? ['smoke'] : [ts[0]], full: ts }; } }
   return { cfg, model: m };
 }
 

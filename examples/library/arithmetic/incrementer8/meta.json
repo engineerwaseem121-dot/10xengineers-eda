@@ -1,0 +1,19 @@
+{
+  "name": "incrementer8",
+  "category": "arithmetic",
+  "expected_template": "adder",
+  "protocol": null,
+  "sequential": false,
+  "clock": null,
+  "reset": null,
+  "reset_active_low": null,
+  "summary": "8-bit incrementer y = a + 1 with carry out",
+  "check": "PASS",
+  "behavior": {
+    "checks": {
+      "y": "a + 1",
+      "carry": "a == 8'hFF"
+    },
+    "source": "written from SPEC.md"
+  }
+}

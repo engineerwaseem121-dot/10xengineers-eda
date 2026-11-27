@@ -1,0 +1,12 @@
+{
+  "name": "t_ff",
+  "category": "sequential",
+  "expected_template": "custom",
+  "protocol": null,
+  "sequential": true,
+  "clock": "clk",
+  "reset": "rst_n",
+  "reset_active_low": true,
+  "summary": "T (toggle) flip-flop with asynchronous active-low reset",
+  "check": "PASS"
+}

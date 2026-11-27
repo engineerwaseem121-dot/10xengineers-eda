@@ -1,0 +1,12 @@
+{
+  "name": "timer_apb",
+  "category": "protocols",
+  "expected_template": "custom",
+  "protocol": "apb",
+  "sequential": true,
+  "clock": "pclk",
+  "reset": "presetn",
+  "reset_active_low": true,
+  "summary": "APB timer: LOAD, VALUE, CTRL(enable, irq_en), STATUS(pending, W1C), periodic down-count with irq",
+  "check": "PASS"
+}

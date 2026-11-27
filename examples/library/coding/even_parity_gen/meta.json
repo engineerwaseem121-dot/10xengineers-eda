@@ -1,0 +1,12 @@
+{
+  "name": "even_parity_gen",
+  "category": "coding",
+  "expected_template": "parity",
+  "protocol": null,
+  "sequential": false,
+  "clock": null,
+  "reset": null,
+  "reset_active_low": null,
+  "summary": "8-bit even parity generator",
+  "check": "PASS"
+}

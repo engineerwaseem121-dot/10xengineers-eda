@@ -1,0 +1,12 @@
+{
+  "name": "debouncer",
+  "category": "sequential",
+  "expected_template": "custom",
+  "protocol": null,
+  "sequential": true,
+  "clock": "clk",
+  "reset": "rst_n",
+  "reset_active_low": true,
+  "summary": "Debouncer: output follows input after STABLE_CYCLES consecutive samples",
+  "check": "PASS"
+}

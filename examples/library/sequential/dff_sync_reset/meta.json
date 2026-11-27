@@ -1,0 +1,12 @@
+{
+  "name": "dff_sync_reset",
+  "category": "sequential",
+  "expected_template": "dff",
+  "protocol": null,
+  "sequential": true,
+  "clock": "clk",
+  "reset": "rst",
+  "reset_active_low": false,
+  "summary": "D flip-flop with synchronous active-high reset",
+  "check": "PASS"
+}

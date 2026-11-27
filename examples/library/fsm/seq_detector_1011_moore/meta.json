@@ -1,0 +1,12 @@
+{
+  "name": "seq_detector_1011_moore",
+  "category": "fsm",
+  "expected_template": "fsm",
+  "protocol": null,
+  "sequential": true,
+  "clock": "clk",
+  "reset": "rst_n",
+  "reset_active_low": true,
+  "summary": "Overlapping 1011 sequence detector, Moore FSM (detected one cycle after the last bit)",
+  "check": "PASS"
+}

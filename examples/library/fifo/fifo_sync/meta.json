@@ -1,0 +1,12 @@
+{
+  "name": "fifo_sync",
+  "category": "fifo",
+  "expected_template": "fifo",
+  "protocol": null,
+  "sequential": true,
+  "clock": "clk",
+  "reset": "rst_n",
+  "reset_active_low": true,
+  "summary": "8x8 synchronous FIFO with full/empty/count and registered read data",
+  "check": "PASS"
+}

@@ -1,0 +1,19 @@
+{
+  "name": "alu4",
+  "category": "datapath",
+  "expected_template": "alu",
+  "protocol": null,
+  "sequential": false,
+  "clock": null,
+  "reset": null,
+  "reset_active_low": null,
+  "summary": "4-bit ALU, 8 ops (add/sub/and/or/xor/not/shl/shr), zero flag",
+  "check": "PASS",
+  "behavior": {
+    "checks": {
+      "result": "op == 0 ? a + b : op == 1 ? a - b : op == 2 ? a & b : op == 3 ? a | b : op == 4 ? a ^ b : op == 5 ? ~a : op == 6 ? a << 1 : a >> 1",
+      "zero": "(op == 0 ? a + b : op == 1 ? a - b : op == 2 ? a & b : op == 3 ? a | b : op == 4 ? a ^ b : op == 5 ? ~a : op == 6 ? a << 1 : a >> 1) == 4'd0"
+    },
+    "source": "written from SPEC.md"
+  }
+}

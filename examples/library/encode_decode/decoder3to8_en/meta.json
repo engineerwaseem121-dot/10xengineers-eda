@@ -1,0 +1,12 @@
+{
+  "name": "decoder3to8_en",
+  "category": "encode_decode",
+  "expected_template": "decoder",
+  "protocol": null,
+  "sequential": false,
+  "clock": null,
+  "reset": null,
+  "reset_active_low": null,
+  "summary": "3-to-8 binary to one-hot decoder with enable",
+  "check": "PASS"
+}

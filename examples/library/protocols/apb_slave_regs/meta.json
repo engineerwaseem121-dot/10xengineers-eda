@@ -1,0 +1,12 @@
+{
+  "name": "apb_slave_regs",
+  "category": "protocols",
+  "expected_template": "custom",
+  "protocol": "apb",
+  "sequential": true,
+  "clock": "pclk",
+  "reset": "presetn",
+  "reset_active_low": true,
+  "summary": "APB slave with four 32-bit RW registers at 0x0-0xC, pready=1, pslverr on unmapped access",
+  "check": "PASS"
+}

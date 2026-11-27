@@ -657,6 +657,17 @@ ${outs}
   return { kind: model.seq ? 'unsupported-seq' : 'comb', code, body };
 }
 
+/** expression models (gate, mux, ALU-like custom checks, ...): the Python model is translated from the same expressions */
+function exprGen(cfg, model) {
+  const outs = Object.entries(model.expr.py).map(([name, e]) => {
+    const w = (model.outputs.find(o => o.name === name) || {}).width || 1;
+    return `    e = ${e}\n    if e is not None:\n        out[${py(name)}] = _m(e, ${w})`;
+  }).join('\n');
+  const code = `\n${require('./expr').PY_HELPERS}\n\ndef model(v):\n    """Expected outputs, translated from dvflow.json (${(model.expr.note || 'behavior.checks').replace(/"/g, "'")})."""\n    out = {}\n${outs}\n    return out\n`;
+  const body = Object.fromEntries(model.scenarios.map(s => [s.id, s.pyBody || '    pass']));
+  return { kind: 'comb', code, body };
+}
+
 const GEN = { adder, counter: (c, m) => counter(c, m, false), updown_counter: (c, m) => counter(c, m, true), dff: register, latch: register, shift_register: shift, pipeline, fifo, memory, custom };
 
 /** cocotb test functions: one per test name, running that test's scenarios in plan order */
@@ -714,7 +725,7 @@ function generate(root, cfg) {
   const dut = tb.resolveDut(tb.withDefaults(cfg), root, {}, f => fs.readFileSync(f, 'utf8'));
   const c = tb.withDefaults(cfg);
   const model = tb.buildModel(c, dut.ports, dut.paramValues);
-  const gen = GEN[c.template] || custom;
+  const gen = model.expr ? exprGen : (GEN[c.template] || custom);
   const g = gen(c, model);
   if (g.kind === 'unsupported-seq') {
     // custom sequential: give the clocked harness with a model class to fill in

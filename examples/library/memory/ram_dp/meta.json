@@ -1,0 +1,13 @@
+{
+  "name": "ram_dp",
+  "category": "memory",
+  "expected_template": "custom",
+  "protocol": null,
+  "sequential": true,
+  "clock": "clk",
+  "reset": "rst_n",
+  "reset_active_low": true,
+  "summary": "16x8 simple dual-port RAM: one write port, one registered read port",
+  "check": "PASS",
+  "note": "dual-port RAM: the memory template models one address"
+}

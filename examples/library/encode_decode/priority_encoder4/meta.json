@@ -1,0 +1,12 @@
+{
+  "name": "priority_encoder4",
+  "category": "encode_decode",
+  "expected_template": "priority_encoder",
+  "protocol": null,
+  "sequential": false,
+  "clock": null,
+  "reset": null,
+  "reset_active_low": null,
+  "summary": "4-input priority encoder, highest index wins, with valid",
+  "check": "PASS"
+}

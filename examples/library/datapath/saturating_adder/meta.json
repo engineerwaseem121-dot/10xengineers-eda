@@ -1,0 +1,19 @@
+{
+  "name": "saturating_adder",
+  "category": "datapath",
+  "expected_template": "custom",
+  "protocol": null,
+  "sequential": false,
+  "clock": null,
+  "reset": null,
+  "reset_active_low": null,
+  "summary": "Unsigned 8-bit adder that saturates at 255, with sat flag",
+  "check": "PASS",
+  "behavior": {
+    "checks": {
+      "sum": "({1'b0, a} + {1'b0, b}) > 9'd255 ? 8'hFF : a + b",
+      "sat": "({1'b0, a} + {1'b0, b}) > 9'd255"
+    },
+    "source": "written from SPEC.md"
+  }
+}

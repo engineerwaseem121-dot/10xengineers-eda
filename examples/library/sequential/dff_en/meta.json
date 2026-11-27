@@ -1,0 +1,12 @@
+{
+  "name": "dff_en",
+  "category": "sequential",
+  "expected_template": "dff",
+  "protocol": null,
+  "sequential": true,
+  "clock": "clk",
+  "reset": "rst_n",
+  "reset_active_low": true,
+  "summary": "D flip-flop with enable and asynchronous active-low reset",
+  "check": "PASS"
+}

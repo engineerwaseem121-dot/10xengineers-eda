@@ -1,0 +1,12 @@
+{
+  "name": "multiplier4",
+  "category": "arithmetic",
+  "expected_template": "multiplier",
+  "protocol": null,
+  "sequential": false,
+  "clock": null,
+  "reset": null,
+  "reset_active_low": null,
+  "summary": "Unsigned 4x4 -> 8-bit combinational shift-and-add multiplier",
+  "check": "PASS"
+}

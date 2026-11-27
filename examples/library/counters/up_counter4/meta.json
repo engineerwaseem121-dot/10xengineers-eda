@@ -1,0 +1,12 @@
+{
+  "name": "up_counter4",
+  "category": "counters",
+  "expected_template": "counter",
+  "protocol": null,
+  "sequential": true,
+  "clock": "clk",
+  "reset": "rst_n",
+  "reset_active_low": true,
+  "summary": "4-bit up counter with enable, wraps 15 to 0",
+  "check": "PASS"
+}

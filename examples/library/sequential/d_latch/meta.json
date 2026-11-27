@@ -1,0 +1,12 @@
+{
+  "name": "d_latch",
+  "category": "sequential",
+  "expected_template": "latch",
+  "protocol": null,
+  "sequential": true,
+  "clock": null,
+  "reset": null,
+  "reset_active_low": null,
+  "summary": "Transparent-high D latch (level sensitive, no clock or reset)",
+  "check": "PASS"
+}

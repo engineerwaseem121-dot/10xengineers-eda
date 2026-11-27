@@ -1,0 +1,12 @@
+{
+  "name": "apb_master_simple",
+  "category": "protocols",
+  "expected_template": "custom",
+  "protocol": "apb",
+  "sequential": true,
+  "clock": "pclk",
+  "reset": "presetn",
+  "reset_active_low": true,
+  "summary": "APB requester issuing one read or write per start pulse, with wait-state support, rdata/done/error",
+  "check": "PASS"
+}

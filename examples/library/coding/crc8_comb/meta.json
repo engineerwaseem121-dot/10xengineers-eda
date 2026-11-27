@@ -1,0 +1,12 @@
+{
+  "name": "crc8_comb",
+  "category": "coding",
+  "expected_template": "crc",
+  "protocol": null,
+  "sequential": false,
+  "clock": null,
+  "reset": null,
+  "reset_active_low": null,
+  "summary": "Combinational CRC-8 (poly 0x07, init 0x00) of one byte",
+  "check": "PASS"
+}

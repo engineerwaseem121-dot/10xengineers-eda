@@ -1,0 +1,12 @@
+{
+  "name": "encoder8to3",
+  "category": "encode_decode",
+  "expected_template": "encoder",
+  "protocol": null,
+  "sequential": false,
+  "clock": null,
+  "reset": null,
+  "reset_active_low": null,
+  "summary": "8-to-3 binary encoder for a one-hot input",
+  "check": "PASS"
+}

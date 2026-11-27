@@ -1,0 +1,12 @@
+{
+  "name": "subtractor8",
+  "category": "arithmetic",
+  "expected_template": "subtractor",
+  "protocol": null,
+  "sequential": false,
+  "clock": null,
+  "reset": null,
+  "reset_active_low": null,
+  "summary": "8-bit unsigned subtractor with borrow out",
+  "check": "PASS"
+}

@@ -1,0 +1,12 @@
+{
+  "name": "elevator_2floor",
+  "category": "fsm",
+  "expected_template": "fsm",
+  "protocol": null,
+  "sequential": true,
+  "clock": "clk",
+  "reset": "rst_n",
+  "reset_active_low": true,
+  "summary": "Two-floor elevator controller: latched calls, door timer, motor up/down",
+  "check": "PASS"
+}

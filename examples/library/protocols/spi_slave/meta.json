@@ -1,0 +1,12 @@
+{
+  "name": "spi_slave",
+  "category": "protocols",
+  "expected_template": "custom",
+  "protocol": "spi",
+  "sequential": true,
+  "clock": "clk",
+  "reset": "rst_n",
+  "reset_active_low": true,
+  "summary": "SPI mode 0 slave oversampled by clk with synchronizers, rx_valid per byte, multi-byte frames",
+  "check": "PASS"
+}

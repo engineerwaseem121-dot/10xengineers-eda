@@ -1,0 +1,12 @@
+{
+  "name": "ring_counter4",
+  "category": "counters",
+  "expected_template": "custom",
+  "protocol": null,
+  "sequential": true,
+  "clock": "clk",
+  "reset": "rst_n",
+  "reset_active_low": true,
+  "summary": "4-bit one-hot ring counter, reset value 0001",
+  "check": "PASS"
+}

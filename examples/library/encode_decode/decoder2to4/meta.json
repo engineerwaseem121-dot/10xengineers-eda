@@ -1,0 +1,12 @@
+{
+  "name": "decoder2to4",
+  "category": "encode_decode",
+  "expected_template": "decoder",
+  "protocol": null,
+  "sequential": false,
+  "clock": null,
+  "reset": null,
+  "reset_active_low": null,
+  "summary": "2-to-4 binary to one-hot decoder",
+  "check": "PASS"
+}

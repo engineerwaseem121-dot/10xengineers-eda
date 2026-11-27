@@ -1,0 +1,12 @@
+{
+  "name": "lfsr8",
+  "category": "counters",
+  "expected_template": "lfsr",
+  "protocol": null,
+  "sequential": true,
+  "clock": "clk",
+  "reset": "rst_n",
+  "reset_active_low": true,
+  "summary": "8-bit Fibonacci LFSR, taps 8,6,5,4, seed 0x01",
+  "check": "PASS"
+}

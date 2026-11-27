@@ -1,0 +1,12 @@
+{
+  "name": "axi4lite_slave_regs",
+  "category": "protocols",
+  "expected_template": "custom",
+  "protocol": "axi4lite",
+  "sequential": true,
+  "clock": "aclk",
+  "reset": "aresetn",
+  "reset_active_low": true,
+  "summary": "AXI4-Lite slave with four registers, AW/W in any order, wstrb, OKAY/SLVERR responses",
+  "check": "PASS"
+}

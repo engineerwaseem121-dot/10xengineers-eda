@@ -1,0 +1,12 @@
+{
+  "name": "register8_load",
+  "category": "sequential",
+  "expected_template": "dff",
+  "protocol": null,
+  "sequential": true,
+  "clock": "clk",
+  "reset": "rst_n",
+  "reset_active_low": true,
+  "summary": "8-bit register with load enable and asynchronous active-low reset",
+  "check": "PASS"
+}

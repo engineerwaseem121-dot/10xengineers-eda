@@ -1,0 +1,12 @@
+{
+  "name": "demux1to8",
+  "category": "mux_demux",
+  "expected_template": "demux",
+  "protocol": null,
+  "sequential": false,
+  "clock": null,
+  "reset": null,
+  "reset_active_low": null,
+  "summary": "1:8 demultiplexer, WIDTH-bit din to packed 8*WIDTH-bit dout (WIDTH=8)",
+  "check": "PASS"
+}

@@ -1,0 +1,12 @@
+{
+  "name": "axis_skid_buffer",
+  "category": "protocols",
+  "expected_template": "pipeline",
+  "protocol": "axis",
+  "sequential": true,
+  "clock": "aclk",
+  "reset": "aresetn",
+  "reset_active_low": true,
+  "summary": "AXI-Stream register slice / skid buffer with full throughput and registered ready",
+  "check": "PASS"
+}

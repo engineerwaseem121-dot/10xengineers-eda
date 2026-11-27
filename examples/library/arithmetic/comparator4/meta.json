@@ -1,0 +1,12 @@
+{
+  "name": "comparator4",
+  "category": "arithmetic",
+  "expected_template": "comparator",
+  "protocol": null,
+  "sequential": false,
+  "clock": null,
+  "reset": null,
+  "reset_active_low": null,
+  "summary": "4-bit unsigned magnitude comparator (eq, lt, gt)",
+  "check": "PASS"
+}

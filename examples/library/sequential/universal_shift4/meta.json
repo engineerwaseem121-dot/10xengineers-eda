@@ -1,0 +1,12 @@
+{
+  "name": "universal_shift4",
+  "category": "sequential",
+  "expected_template": "shift_register",
+  "protocol": null,
+  "sequential": true,
+  "clock": "clk",
+  "reset": "rst_n",
+  "reset_active_low": true,
+  "summary": "4-bit universal shift register: hold, shift left, shift right, parallel load",
+  "check": "PASS"
+}

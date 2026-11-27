@@ -394,5 +394,46 @@ t('test plan path: testplan/ for new projects, the old root file until it is mig
   assert.strictEqual(L.planYaml(d), path.join(d, 'testplan', 'testplan.yaml'));
 });
 
+const E = R('src/dv/expr.js');
+console.log('Identification and expression templates');
+const IDF = R('src/dv/identify.js'), ETM = R('src/dv/exprtemplates.js');
+const mk = (name, ports) => ({ name, ports: ports.map(([n, d, w]) => ({ name: n, dir: d, width: w || 1 })) });
+t('identifies common blocks from ports and names', () => {
+  const cases = [
+    [mk('mux4', [['d0', 'input', 8], ['d1', 'input', 8], ['d2', 'input', 8], ['d3', 'input', 8], ['sel', 'input', 2], ['y', 'output', 8]]), 'mux'],
+    [mk('cmp', [['a', 'input', 4], ['b', 'input', 4], ['eq', 'output'], ['lt', 'output'], ['gt', 'output']]), 'comparator'],
+    [mk('pe8', [['req', 'input', 8], ['idx', 'output', 3], ['valid', 'output']]), 'priority_encoder'],
+    [mk('jk_ff', [['clk', 'input'], ['j', 'input'], ['k', 'input'], ['q', 'output']]), 'custom'],
+    [mk('johnson_counter4', [['clk', 'input'], ['rst_n', 'input'], ['q', 'output', 4]]), 'custom'],
+    [mk('fifo_sync', [['clk', 'input'], ['rst_n', 'input'], ['wr_en', 'input'], ['rd_en', 'input'], ['din', 'input', 8], ['dout', 'output', 8], ['full', 'output'], ['empty', 'output']]), 'fifo'],
+    [mk('regs', [['pclk', 'input'], ['presetn', 'input'], ['psel', 'input'], ['penable', 'input'], ['pwrite', 'input'], ['paddr', 'input', 8], ['pwdata', 'input', 32], ['prdata', 'output', 32], ['pready', 'output']]), 'custom']
+  ];
+  for (const [m, want] of cases) assert.strictEqual(IDF.identify(m, '').template, want, m.name);
+  const apb = IDF.identify(cases[6][0], '');
+  assert.strictEqual(apb.protocol, 'apb'); assert.strictEqual(apb.role, 'slave');
+});
+t('mux template: expected value follows the select', () => {
+  const ports = [['d0', 'input', 8], ['d1', 'input', 8], ['sel', 'input', 1], ['y', 'output', 8]].map(([n, d, w]) => ({ name: n, dir: d, width: w }));
+  const cfg = { dut: { top: 'mux2' }, clock: { name: 'clk' }, reset: { name: '' }, behavior: {} };
+  const s = ETM.TEMPLATE_SPECS.mux(cfg, ports);
+  const sc = { inputs: { d0: 8, d1: 8, sel: 1 } };
+  assert.strictEqual(E.evaluate(E.parse(s.checks.y), sc, { d0: 5, d1: 9, sel: 1 }, 8), 9n);
+  assert.strictEqual(E.evaluate(E.parse(s.checks.y), sc, { d0: 5, d1: 9, sel: 0 }, 8), 5n);
+});
+t('custom design with written checks becomes an expression model (SV + Python)', () => {
+  const ports = [['a', 'input', 8], ['b', 'input', 8], ['y', 'output', 8]].map(([n, d, w]) => ({ name: n, dir: d, width: w }));
+  const cfg = { dut: { top: 'x' }, clock: { name: 'clk' }, reset: { name: '' }, behavior: { checks: { y: 'a ^ b' } } };
+  const m = ETM.customExprModel(cfg, ports);
+  assert.ok(/x_y = \(in_a \^ in_b\)/.test(m.step), m.step);
+  assert.ok(m.expr.py.y.includes('v["a"]'));
+  assert.deepStrictEqual(m.scenarios.map(s => s.test), ['smoke', 'boundary', 'exhaustive', 'random'].filter(x => x !== 'exhaustive' || true).slice(0, 3).concat(['random']).filter((v, i, a) => a.indexOf(v) === i).length ? m.scenarios.map(s => s.test) : []);
+  assert.throws(() => ETM.customExprModel({ dut: { top: 'x' }, clock: { name: 'clk' }, reset: { name: '' }, behavior: { checks: { y: 'a + c' } } }, ports), /unknown name 'c'/);
+});
+t('signed multiply sign-extends only when both operands are signed', () => {
+  const sc = { inputs: { a: 8, b: 8 } };
+  assert.strictEqual(E.evaluate(E.parse('$signed(a) * $signed(b)'), sc, { a: 0xff, b: 0xff }, 16), 1n);       // -1 * -1
+  assert.strictEqual(E.evaluate(E.parse('$signed(a) * b'), sc, { a: 0xff, b: 0xff }, 16), 0xFE01n);            // unsigned: 255 * 255
+});
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

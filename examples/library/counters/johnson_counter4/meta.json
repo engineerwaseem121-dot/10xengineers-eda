@@ -1,0 +1,12 @@
+{
+  "name": "johnson_counter4",
+  "category": "counters",
+  "expected_template": "custom",
+  "protocol": null,
+  "sequential": true,
+  "clock": "clk",
+  "reset": "rst_n",
+  "reset_active_low": true,
+  "summary": "4-bit Johnson (twisted ring) counter, 8 states",
+  "check": "PASS"
+}

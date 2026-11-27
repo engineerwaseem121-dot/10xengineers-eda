@@ -1,0 +1,12 @@
+{
+  "name": "siso_shift",
+  "category": "sequential",
+  "expected_template": "shift_register",
+  "protocol": null,
+  "sequential": true,
+  "clock": "clk",
+  "reset": "rst_n",
+  "reset_active_low": true,
+  "summary": "8-stage serial-in serial-out shift register",
+  "check": "PASS"
+}

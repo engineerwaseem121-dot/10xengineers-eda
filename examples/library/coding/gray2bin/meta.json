@@ -1,0 +1,12 @@
+{
+  "name": "gray2bin",
+  "category": "coding",
+  "expected_template": "code_converter",
+  "protocol": null,
+  "sequential": false,
+  "clock": null,
+  "reset": null,
+  "reset_active_low": null,
+  "summary": "Parameterized Gray code to binary converter",
+  "check": "PASS"
+}

@@ -1,0 +1,16 @@
+{
+  "name": "ram_sp",
+  "category": "memory",
+  "expected_template": "memory",
+  "protocol": null,
+  "sequential": true,
+  "clock": "clk",
+  "reset": "rst_n",
+  "reset_active_low": true,
+  "summary": "16x8 single-port synchronous RAM, registered read, read-first",
+  "check": "PASS",
+  "behavior": {
+    "reset_clears": true,
+    "source": "reset behaviour from SPEC.md (every word cleared to 0)"
+  }
+}

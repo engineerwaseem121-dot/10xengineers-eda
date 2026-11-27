@@ -1,0 +1,12 @@
+{
+  "name": "half_subtractor",
+  "category": "arithmetic",
+  "expected_template": "subtractor",
+  "protocol": null,
+  "sequential": false,
+  "clock": null,
+  "reset": null,
+  "reset_active_low": null,
+  "summary": "1-bit half subtractor (diff, borrow)",
+  "check": "PASS"
+}

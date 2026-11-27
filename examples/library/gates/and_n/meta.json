@@ -1,0 +1,12 @@
+{
+  "name": "and_n",
+  "category": "gates",
+  "expected_template": "gate",
+  "protocol": null,
+  "sequential": false,
+  "clock": null,
+  "reset": null,
+  "reset_active_low": null,
+  "summary": "N-input AND reduction of an N-bit vector (N=4)",
+  "check": "PASS"
+}

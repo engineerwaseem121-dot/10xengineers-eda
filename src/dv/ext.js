@@ -121,8 +121,10 @@ function register(context) {
     if (pov === undefined) return;
     const params = {};
     (pov || '').split(',').map(s => s.trim()).filter(Boolean).forEach(s => { const [k, v] = s.split('=').map(x => x.trim()); if (k && v !== undefined && !isNaN(Number(v))) params[k] = Number(v); });
-    const g = guess(mod);
-    const tp = await vscode.window.showQuickPick(Object.entries(TEMPLATES).map(([k, t]) => ({ label: t.label, description: k === g ? 'suggested from the RTL' : '', k })).sort((a, b) => (b.k === g) - (a.k === g)), { placeHolder: 'Verification template (what the DUT is meant to do)', ignoreFocusOut: true });
+    const ident = require('./identify').identify(mod, fs.readFileSync(file, 'utf8'));
+    const g = guess(mod, fs.readFileSync(file, 'utf8'));
+    out.appendLine(`[identify] ${mod.name}: ${ident.label} (${ident.confidence} confidence) — ${ident.reasons.join('; ')}${ident.alternatives.length ? ' · also possible: ' + ident.alternatives.map(a => a.label).join(', ') : ''}`);
+    const tp = await vscode.window.showQuickPick(Object.entries(TEMPLATES).map(([k, t]) => ({ label: t.label, description: k === g ? `suggested: ${ident.label}${ident.reasons[0] ? ' (' + ident.reasons[0] + ')' : ''}` : (k === 'custom' && !TEMPLATES[ident.template] && ident.template !== 'custom' ? `identified as ${ident.label}: write its expected behaviour` : ''), k })).sort((a, b) => (b.k === g) - (a.k === g)), { placeHolder: 'Verification template (what the DUT is meant to do)', ignoreFocusOut: true });
     if (!tp) return;
     const c = hdl.classify(mod.ports);
     const behavior = {};
@@ -169,6 +171,8 @@ function register(context) {
       const d = tbgen.resolveDut(tbgen.withDefaults(cfg), root, {}, f => fs.readFileSync(f, 'utf8'));
       const m = tbgen.buildModel(tbgen.withDefaults(cfg), d.ports, d.paramValues);
       cfg.ports = m.roles || {};
+      // tests = the tests the template has scenarios for (a test without scenarios would run no checks and fail)
+        { const ts = [...new Set(m.scenarios.map(s => s.test).filter(Boolean))]; if (ts.length) { cfg.tests = ts; cfg.suites = { smoke: ts.includes('smoke') ? ['smoke'] : [ts[0]], full: ts }; } }
       detected = `${m.scenarios.length} scenarios, ${m.bins.length} coverage bins, checks: ${(m.checkers || []).map(x => x.id).join(', ')}`;
     } catch (e) { detected = 'needs attention: ' + e.message; }
     const target = path.join(root, 'dvflow.json');
@@ -184,9 +188,10 @@ function register(context) {
     await vscode.window.showTextDocument(vscode.Uri.file(target));
     // RTL loose in the project folder: offer the standard layout (design/ next to tb/, uvm/, testplan/)
     const loose = cfg.dut.files.filter(f => !/[\\/]/.test(f));
-    const acts = ['Generate Testbench'].concat(loose.length ? ['Move RTL to design/'] : []);
+    const acts = (tp.k === 'custom' && !behavior.sequential ? ['Write Expected Behaviour'] : ['Generate Testbench']).concat(loose.length ? ['Move RTL to design/'] : []);
     vscode.window.showInformationMessage(`Proposed DUT configuration for ${mod.name} (${detected}). Review clock edge, reset polarity/cycles, latency, enable and "behavior" (the expected results), then run "DV: Generate Testbench".${loose.length ? ' Tip: keep the RTL in design/ (next to tb/, uvm/ and testplan/).' : ''}`, ...acts).then(async x => {
-      if (x === 'Move RTL to design/') { await moveRtlToDesign(root, target, loose); generate(); }
+      if (x === 'Move RTL to design/') { await moveRtlToDesign(root, target, loose); if (tp.k === 'custom') vscode.commands.executeCommand('tenxDebug.dv.writeBehaviour'); else generate(); }
+      else if (x === 'Write Expected Behaviour') vscode.commands.executeCommand('tenxDebug.dv.writeBehaviour');
       else if (x) generate();
     });
   }
@@ -844,6 +849,43 @@ const b = document.createElement('button'); b.textContent = 'Open in browser'; b
   reg('tenxDebug.dv.formalProve', () => signoff(['formal']));
   reg('tenxDebug.dv.fixQuotes', () => fixQuotes());
   reg('tenxDebug.dv.generateTestPlan', () => generate(true));
+  reg('tenxDebug.dv.newFromLibrary', async () => {
+    const L = require('./library');
+    const all = L.list(context.extensionUri.fsPath);
+    if (!all.length) { vscode.window.showWarningMessage('The design library is missing from this installation.'); return; }
+    const cat = c => ({ gates: 'Logic gates', arithmetic: 'Arithmetic', mux_demux: 'Mux / demux', encode_decode: 'Encoders / decoders', coding: 'Codes: parity, CRC, Gray, Hamming', datapath: 'ALU / datapath', sequential: 'Flip-flops / registers / shifters', counters: 'Counters / LFSR / PC', memory: 'Memories / register files', fifo: 'FIFOs', fsm: 'State machines', protocols: 'Protocols: APB, AHB, AXI, SPI, I²C, UART, Wishbone' }[c] || c);
+    const items = [];
+    let last = null;
+    for (const d of all) {
+      if (d.category !== last) { items.push({ label: cat(d.category), kind: vscode.QuickPickItemKind.Separator }); last = d.category; }
+      items.push({ label: d.name, description: d.title, detail: `template: ${d.meta.expected_template}${d.meta.protocol ? ' · protocol: ' + d.meta.protocol : ''} · proven against its spec`, d });
+    }
+    const pick = await vscode.window.showQuickPick(items, { placeHolder: `New design from the library (${all.length} designs, each with a spec and a self-check)`, matchOnDescription: true, matchOnDetail: true });
+    if (!pick || !pick.d) return;
+    const base = (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders[0] && vscode.workspace.workspaceFolders[0].uri.fsPath) || require('os').homedir();
+    const target = await vscode.window.showInputBox({ prompt: 'Folder for the new project (design/, SPEC.md, testbenches, test plan)', value: path.join(base, pick.d.name), ignoreFocusOut: true });
+    if (!target) return;
+    if (!trusted()) return;
+    try {
+      const r = L.createProject(context.extensionUri.fsPath, pick.d, target, { initOpts: { engineSrc, runtime: process.execPath } });
+      out.appendLine(`[library] ${pick.d.name} → ${r.root}: template ${r.template}, ${r.files.length} files generated`);
+      if (fs.existsSync(path.join(r.root, 'SPEC.md'))) await vscode.window.showTextDocument(vscode.Uri.file(path.join(r.root, 'SPEC.md')), { preview: false });
+      await vscode.window.showTextDocument(vscode.Uri.file(path.join(r.root, 'design', pick.d.name + '.sv')), { viewColumn: vscode.ViewColumn.Beside, preview: false });
+      const inWs = (vscode.workspace.workspaceFolders || []).some(f => r.root.toLowerCase().startsWith(f.uri.fsPath.toLowerCase()));
+      const acts = r.runnable ? ['Run Regression'] : ['Write Expected Behaviour'];
+      if (!inWs) acts.push('Open Folder');
+      const a = await vscode.window.showInformationMessage(`${pick.d.name}: RTL, SPEC.md and testbenches are ready (template ${r.template}).${!r.runnable ? ' This design needs its expected behaviour written (its self-check testbench is in tb/selfcheck/).' : r.template === 'custom' ? ' Its expected behaviour was written from SPEC.md.' : ''}`, ...acts);
+      if (a === 'Run Regression') vscode.commands.executeCommand('tenxDebug.dv.runRegression');
+      else if (a === 'Write Expected Behaviour') vscode.commands.executeCommand('tenxDebug.dv.writeBehaviour');
+      else if (a === 'Open Folder') vscode.commands.executeCommand('vscode.openFolder', vscode.Uri.file(r.root), { forceNewWindow: false });
+    } catch (e) { fail('New design from library', e); }
+  });
+  reg('tenxDebug.dv.writeBehaviour', async () => {
+    const root = await pickProject(); if (!root) return;
+    try {
+      require('./behaviourform').openForm(root, { aiEnabled: () => cfgv().get('dv.ai.enable', false), aiGate, aiAsk, log: s => out.appendLine(s) });
+    } catch (e) { fail('Write Expected Behaviour', e); }
+  });
   reg('tenxDebug.dv.generateTestbench', () => generate(false));
   reg('tenxDebug.dv.runTest', runTest);
   reg('tenxDebug.dv.runRegression', runRegression);

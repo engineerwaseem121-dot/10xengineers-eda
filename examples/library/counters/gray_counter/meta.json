@@ -1,0 +1,12 @@
+{
+  "name": "gray_counter",
+  "category": "counters",
+  "expected_template": "custom",
+  "protocol": null,
+  "sequential": true,
+  "clock": "clk",
+  "reset": "rst_n",
+  "reset_active_low": true,
+  "summary": "Gray-code counter (WIDTH=4) with enable",
+  "check": "PASS"
+}

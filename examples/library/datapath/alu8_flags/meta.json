@@ -1,0 +1,12 @@
+{
+  "name": "alu8_flags",
+  "category": "datapath",
+  "expected_template": "alu",
+  "protocol": null,
+  "sequential": false,
+  "clock": null,
+  "reset": null,
+  "reset_active_low": null,
+  "summary": "8-bit ALU, 16 ops incl. SLT/SLTU/pass, zero/carry/negative/overflow flags",
+  "check": "PASS"
+}

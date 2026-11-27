@@ -1,0 +1,12 @@
+{
+  "name": "axis_fifo",
+  "category": "protocols",
+  "expected_template": "fifo",
+  "protocol": "axis",
+  "sequential": true,
+  "clock": "aclk",
+  "reset": "aresetn",
+  "reset_active_low": true,
+  "summary": "16-entry first-word-fall-through AXI-Stream FIFO carrying tdata and tlast",
+  "check": "PASS"
+}

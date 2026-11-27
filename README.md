@@ -63,6 +63,50 @@ my_block/
 
 ---
 
+## Design library: 106 designs, each with a spec
+
+`examples/library/` holds **106 original designs**. Each one has a written **SPEC.md** and RTL that was proven against that spec by its own self-checking testbench:
+
+| Category | Designs |
+|---|---|
+| Logic gates | AND, OR, NAND, NOR, XOR, XNOR, NOT, BUF, N-input, vector, gate bank |
+| Arithmetic | half/full/ripple/carry-lookahead adders, subtractors, adder-subtractor, incrementer, multipliers (signed/unsigned), comparators, abs |
+| Mux / demux | 2:1, 4:1, 8:1, parameterised N:1, 1:4, 1:8 |
+| Encoders / decoders | 4→2, 8→3, priority encoders, 2→4, 3→8 with enable, 7-segment, one-hot → binary |
+| Codes | binary ↔ Gray, binary → BCD, parity generator/checker, CRC-8, serial CRC-16-CCITT, Hamming(7,4) encoder/decoder |
+| ALU / datapath | 4-bit ALU, 8-bit ALU with flags, barrel shifter, leading-zero count, popcount, saturating adder, MAC |
+| Flip-flops / registers / shifters | D (async/sync/enable), T, JK, latch, load register, SISO/SIPO/PISO, universal shift register, edge detector, debouncer, clock divider |
+| Counters | up, mod-10, up/down, ring, Johnson, Gray, LFSR, program counter |
+| Memories | single-port RAM, dual-port RAM, ROM, 2-read/1-write register file |
+| FIFOs | synchronous, almost-full/empty, first-word-fall-through |
+| State machines | traffic light, 1011 detector (Moore and Mealy), vending machine, round-robin arbiter, handshake, elevator |
+| Protocols | AMBA APB slave/master, APB timer, AHB-Lite SRAM slave, AXI4-Lite slave, AXI-Stream skid buffer and FIFO, Wishbone slave, SPI master/slave, I²C master, UART TX/RX, PWM |
+
+To start from one: **DV: New Design from Library**, or `dvflow new --design fifo_sync --root my_fifo` in a terminal (`dvflow library` lists them). You get the RTL in `design/`, `SPEC.md`, the testbenches and the test plan, with the design's own self-check copied to `tb/selfcheck/`. Change the RTL for your needs and the regression tells you whether it still meets the spec.
+
+The protocol blocks follow the publicly known behaviour of APB, AHB-Lite, AXI, Wishbone, SPI, I²C and UART. The specs are written in our own words; the AMBA specifications themselves are ARM documents and are not included.
+
+## Automatic identification
+
+When you run **DV: Select DUT**, the extension works out what your RTL is from its ports, widths, module name and code. Each candidate is scored, and the suggestion comes with its reasons, for example *"priority encoder: one-hot input with an index output and a valid flag"* or *"AMBA APB slave protocol block: verify with bus transactions"*. It also recognises protocol interfaces (APB, AHB, AXI4-Lite, AXI-Stream, Wishbone, SPI, I²C, UART), several at once when a block has more than one.
+
+| Measured on | Correct |
+|---|---|
+| The 106 library designs | 106/106 |
+| RTLLM, an outside benchmark with labelled designs | 47/49 (96%) |
+
+Through **DV: New Design from Library**, every one of the **62** library designs the extension can check automatically passes its full regression (`test/library-sweep.js`). The other 44 start as custom: clocked custom designs, state machines and protocol blocks, which need their expected behaviour written.
+
+**Templates that check a design automatically:** adder, subtractor, adder-subtractor, multiplier, comparator, mux, demux, encoder, priority encoder, decoder, binary ↔ Gray, parity, D flip-flop, latch, shift register, counter, up/down counter, pipeline, FIFO (including first-word-fall-through) and memory.
+
+For anything else (an ALU, a state machine, a protocol block), the design starts as **custom**. Its expected behaviour goes in **DV: Write Expected Behaviour**, a form with one field per output:
+
+- Write each output as an expression of the inputs, for example `op == 0 ? a + b : a - b`.
+- Every field is checked as you type: syntax, names (with *did you mean*), widths, and a worked example value.
+- An optional AI draft from your spec text fills the fields for you to review. It is off unless you enable `tenxDebug.dv.ai.enable`, and nothing is sent without your confirmation.
+
+The same expressions drive the SystemVerilog, UVM and cocotb testbenches.
+
 ## Walkthrough: one design, seven steps
 
 A mod-10 counter on QuestaSim, from RTL to a verified block. Each picture is a frame from the demo video, with the step on the left and what to look at highlighted.

@@ -1,0 +1,12 @@
+{
+  "name": "fifo_fwft",
+  "category": "fifo",
+  "expected_template": "fifo",
+  "protocol": null,
+  "sequential": true,
+  "clock": "clk",
+  "reset": "rst_n",
+  "reset_active_low": true,
+  "summary": "8x8 first-word-fall-through FIFO: head word visible on dout while not empty",
+  "check": "PASS"
+}

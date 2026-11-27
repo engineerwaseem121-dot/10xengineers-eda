@@ -1,0 +1,12 @@
+{
+  "name": "vending_machine",
+  "category": "fsm",
+  "expected_template": "fsm",
+  "protocol": null,
+  "sequential": true,
+  "clock": "clk",
+  "reset": "rst_n",
+  "reset_active_low": true,
+  "summary": "Vending FSM: 5/10 coins, price 15, vend pulse with 5 change on overpay",
+  "check": "PASS"
+}

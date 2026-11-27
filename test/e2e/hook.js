@@ -2,6 +2,7 @@
 // State is shared with the test runner through global.__E2E (same extension-host process).
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const PICK_RULES = [
+  [/New design from the library/, /^alu4$/],
   [/UVM testbench with which/, /verilator|Verilator/],
   [/simple testbench with which|simulator|Simulator/, /icarus|Icarus/],
   [/Testbench|testbench to run|What to run|Run which/i, /Simple|lightweight|SV/i],
@@ -24,7 +25,7 @@ module.exports = function (vscode) {
     items = await items; const arr = Array.isArray(items) ? items : [];
     const ph = (opts && (opts.placeHolder || opts.title)) || '';
     const label = i => typeof i === 'string' ? i : String(i.label || '');
-    let choice = arr[0];
+    let choice = arr.find(i => !(i && i.kind === -1)) || arr[0];
     for (const [p, l] of PICK_RULES) if (p.test(ph)) { const hit = arr.find(i => l.test(label(i).replace(/\$\([^)]*\)\s*/g, ''))); if (hit) { choice = hit; break; } }
     note('pick', `${ph} -> ${choice ? label(choice) : '(none)'}  [${arr.length} items]`);
     if (!arr.length) return undefined;

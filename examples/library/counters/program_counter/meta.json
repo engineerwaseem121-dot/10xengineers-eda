@@ -1,0 +1,12 @@
+{
+  "name": "program_counter",
+  "category": "counters",
+  "expected_template": "pc",
+  "protocol": null,
+  "sequential": true,
+  "clock": "clk",
+  "reset": "rst_n",
+  "reset_active_low": true,
+  "summary": "32-bit program counter with load, signed relative branch and +4 increment",
+  "check": "PASS"
+}

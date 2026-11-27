@@ -1,0 +1,12 @@
+{
+  "name": "traffic_light_ctrl",
+  "category": "fsm",
+  "expected_template": "fsm",
+  "protocol": null,
+  "sequential": true,
+  "clock": "clk",
+  "reset": "rst_n",
+  "reset_active_low": true,
+  "summary": "Two-way NS/EW traffic light FSM with parameterised green and yellow durations",
+  "check": "PASS"
+}

@@ -66,7 +66,7 @@ function steps(simId, t, ctx) {
     // Windows-mounted folder; the executable stays in the container and runs there
     const obj = ctx.container ? '/tmp/tenx-obj/' + path.basename(path.dirname(runDir)) : path.join(runDir, 'obj_dir');
     return {
-      build: [...(ctx.container ? [{ stage: 'compile', cmd: 'ctr:mkdir', args: ['-p', obj], cwd: uvmDir }] : []), { stage: 'compile', cmd: v, args: ['--binary', '--timing', '-j', sim.vjobs(), '-Wno-fatal', '-Wno-lint', '-Wno-style', '--trace', '+define+UVM_NO_DPI', '+incdir+' + (ctx.container ? home + '/src' : path.join(home, 'src')), ctx.container ? home + '/src/uvm_pkg.sv' : path.join(home, 'src', 'uvm_pkg.sv'), '-f', 'files.f', '--top-module', 'tb_top', '-Mdir', obj, '-o', 'sim'], cwd: uvmDir }],
+      build: [...(ctx.container ? [{ stage: 'compile', cmd: 'ctr:mkdir', args: ['-p', obj], cwd: uvmDir }] : []), { stage: 'compile', cmd: v, args: ['--binary', '--timing', '-j', sim.vjobs(true), '-Wno-fatal', '-Wno-lint', '-Wno-style', '--trace', '+define+UVM_NO_DPI', '+incdir+' + (ctx.container ? home + '/src' : path.join(home, 'src')), ctx.container ? home + '/src/uvm_pkg.sv' : path.join(home, 'src', 'uvm_pkg.sv'), '-f', 'files.f', '--top-module', 'tb_top', '-Mdir', obj, '-o', 'sim'], cwd: uvmDir }],
       run: { stage: 'simulate', cmd: ctx.container ? obj + '/sim' : path.join(obj, sim.IS_WIN ? 'sim.exe' : 'sim'), args: [`+UVM_TESTNAME=${test}`, `+verilator+seed+${seed}`, '+UVM_VERBOSITY=UVM_MEDIUM'], cwd: runDir }
     };
   }

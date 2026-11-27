@@ -1,0 +1,12 @@
+{
+  "name": "mux2",
+  "category": "mux_demux",
+  "expected_template": "mux",
+  "protocol": null,
+  "sequential": false,
+  "clock": null,
+  "reset": null,
+  "reset_active_low": null,
+  "summary": "2:1 multiplexer, WIDTH-bit data (WIDTH=8)",
+  "check": "PASS"
+}

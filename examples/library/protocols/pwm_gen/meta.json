@@ -1,0 +1,12 @@
+{
+  "name": "pwm_gen",
+  "category": "protocols",
+  "expected_template": "custom",
+  "protocol": null,
+  "sequential": true,
+  "clock": "clk",
+  "reset": "rst_n",
+  "reset_active_low": true,
+  "summary": "8-bit PWM generator, period 256 cycles, duty latched at period boundary",
+  "check": "PASS"
+}

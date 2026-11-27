@@ -1,0 +1,12 @@
+{
+  "name": "wishbone_slave_regs",
+  "category": "protocols",
+  "expected_template": "custom",
+  "protocol": "wishbone",
+  "sequential": true,
+  "clock": "clk_i",
+  "reset": "rst_i",
+  "reset_active_low": false,
+  "summary": "Wishbone B4 classic slave with four 32-bit registers, byte selects, registered one-cycle ack",
+  "check": "PASS"
+}

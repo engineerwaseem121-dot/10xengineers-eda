@@ -1,0 +1,12 @@
+{
+  "name": "buf1",
+  "category": "gates",
+  "expected_template": "gate",
+  "protocol": null,
+  "sequential": false,
+  "clock": null,
+  "reset": null,
+  "reset_active_low": null,
+  "summary": "1-input buffer gate",
+  "check": "PASS"
+}

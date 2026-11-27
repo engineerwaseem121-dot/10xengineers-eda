@@ -1,0 +1,12 @@
+{
+  "name": "rom16x8",
+  "category": "memory",
+  "expected_template": "memory",
+  "protocol": null,
+  "sequential": true,
+  "clock": "clk",
+  "reset": "rst_n",
+  "reset_active_low": true,
+  "summary": "16x8 synchronous ROM (case table of squares), registered output",
+  "check": "PASS"
+}

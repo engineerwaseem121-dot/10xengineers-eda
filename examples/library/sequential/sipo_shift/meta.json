@@ -1,0 +1,12 @@
+{
+  "name": "sipo_shift",
+  "category": "sequential",
+  "expected_template": "shift_register",
+  "protocol": null,
+  "sequential": true,
+  "clock": "clk",
+  "reset": "rst_n",
+  "reset_active_low": true,
+  "summary": "8-bit serial-in parallel-out shift register",
+  "check": "PASS"
+}

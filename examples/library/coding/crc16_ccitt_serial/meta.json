@@ -1,0 +1,12 @@
+{
+  "name": "crc16_ccitt_serial",
+  "category": "coding",
+  "expected_template": "crc",
+  "protocol": null,
+  "sequential": true,
+  "clock": "clk",
+  "reset": "rst_n",
+  "reset_active_low": true,
+  "summary": "Bit-serial CRC-16-CCITT, poly 0x1021, init 0xFFFF",
+  "check": "PASS"
+}
